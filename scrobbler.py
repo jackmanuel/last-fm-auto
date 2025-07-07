@@ -5,9 +5,11 @@ import sys
 import re
 import requests
 import json
+import argparse
 from dotenv import load_dotenv
 
 LAST_FM_API_URL = "http://ws.audioscrobbler.com/2.0/"
+LAST_FM_MIN_LISTENERS = 1000
 
 load_dotenv()
 
@@ -20,7 +22,29 @@ if not GUILD_ID:
     raise ValueError("GUILD_ID not found in .env file. Please check your configuration.")
 
 # Set a generous timeout to handle potential database locks
-DB_TIMEOUT = 20.0 
+DB_TIMEOUT = 20.0
+
+# --- Abbreviation Expansion ---
+def load_abbreviations(file_path='abbreviations.json'):
+    """Loads the abbreviation dictionary from a JSON file."""
+    try:
+        with open(file_path, 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        print(f"Warning: {file_path} not found. No abbreviations will be loaded.")
+        return {}
+    except json.JSONDecodeError:
+        print(f"Warning: Could not decode {file_path}. No abbreviations will be loaded.")
+        return {}
+
+ABBREVIATION_MAP = load_abbreviations()
+
+def expand_abbreviations(query):
+    """Expands known abbreviations in the query string."""
+    for abbr, full_name in ABBREVIATION_MAP.items():
+        # Use regex to replace whole words only to avoid partial matches
+        query = re.sub(r'\b' + re.escape(abbr) + r'\b', full_name, query, flags=re.IGNORECASE)
+    return query
 
 def get_new_songs(guild_id, limit=5):
     """Fetches a batch of new songs for a specific guild, limited by the given amount."""
@@ -96,13 +120,92 @@ def search_lastfm_and_parse(api_key, title):
         return None
 
 
+def find_best_track(api_key, query, resolved_title):
+    """
+    Searches Last.fm for a track, first using the query and then the resolved_title.
+    Returns the first track found with more than 1000 listeners.
+    """
+    # Expand abbreviations in the query
+    expanded_query = expand_abbreviations(query)
+    
+    # Check if the query is a YouTube URL
+    youtube_regex = r'(https?://)?(www\.)?(youtube\.com|youtu\.be)/.+'
+    is_youtube_url = re.match(youtube_regex, expanded_query)
+
+    if not is_youtube_url:
+        # 1. Try with the query if it's not a YouTube URL
+        cleaned_query = clean_youtube_title(expanded_query)
+        print(f"Searching Last.fm with query: \"{cleaned_query}\"")
+        tracks = search_lastfm_and_parse(api_key, cleaned_query)
+        if tracks:
+            for track in tracks:
+                if int(track.get('listeners', 0)) > LAST_FM_MIN_LISTENERS:
+                    print("Found suitable track from query.")
+                    return track
+    else:
+        print("Query is a YouTube URL, skipping to resolved_title.")
+
+    # 2. Fallback to resolved_title
+    cleaned_resolved_title = clean_youtube_title(resolved_title)
+    print(f"Falling back to resolved_title. Searching Last.fm with: \"{cleaned_resolved_title}\"")
+    tracks = search_lastfm_and_parse(api_key, cleaned_resolved_title)
+    if tracks:
+        for track in tracks:
+            if int(track.get('listeners', 0)) > LAST_FM_MIN_LISTENERS:
+                print("Found suitable track from resolved_title.")
+                return track
+
+    # 3. If nothing is found
+    print(f"No track found with over {LAST_FM_MIN_LISTENERS} listeners from either query or resolved_title.")
+    return None
+
+# --- TEMPORARY DEBUG FUNCTION ---
+def test_manual_query(api_key, query_string):
+    """
+    Takes a query string and prints the Last.fm API response.
+    """
+    print(f"--- Running Manual Test Query ---")
+    print(f"Query: \"{query_string}\"")
+
+    # Expand abbreviations in the manual query
+    expanded_query = expand_abbreviations(query_string)
+    print(f"Expanded Query: \"{expanded_query}\"")
+
+    cleaned_query = clean_youtube_title(expanded_query)
+    print(f"Cleaned Query for Search: \"{cleaned_query}\"")
+
+    tracks = search_lastfm_and_parse(api_key, cleaned_query)
+
+    print("--- Last.fm Parsed API Response ---")
+    if tracks:
+        for i, track in enumerate(tracks):
+            print(f"  Result {i+1}:")
+            print(f"    Name:      {track.get('name', 'N/A')}")
+            print(f"    Artist:    {track.get('artist', 'N/A')}")
+            print(f"    URL:       {track.get('url', 'N/A')}")
+            print(f"    Listeners: {track.get('listeners', 'N/A')}")
+    else:
+        print("  No tracks found or error in API request.")
+    print("-----------------------------------")
+
 def main():
     """
     Main function to test Last.fm API by fetching 5 songs and printing parsed results.
     """
-    print("Scrobbler starting for parsed API testing...")
+    # --- TEMPORARY DEBUG CODE ---
+    parser = argparse.ArgumentParser(description="Scrobbler script with temporary debug options.")
+    parser.add_argument('--test-query', type=str, help='Run a single test query against the Last.fm API.')
+    args = parser.parse_args()
 
     api_key = get__last_fm_api_key()
+
+    if args.test_query:
+        test_manual_query(api_key, args.test_query)
+        sys.exit(0)
+    # --- END TEMPORARY DEBUG CODE ---
+
+    print("Scrobbler starting for parsed API testing...")
+
     new_songs = get_new_songs(GUILD_ID, limit=5)
 
     if not new_songs:
@@ -111,28 +214,28 @@ def main():
 
     print(f"Found {len(new_songs)} new songs for guild ID {GUILD_ID}. Testing Last.fm API and printing parsed results...")
     for song in new_songs:
-        original_title = song['resolved_title']
+        query = song['query']
+        resolved_title = song['resolved_title']
+        
         print(f"\n--- Processing Song ID: {song['request_id']} ---")
-        print(f"Original Title: {original_title}")
+        print(f"Original Query: {query}")
+        print(f"Original Resolved Title: {resolved_title}")
 
-        cleaned_title = clean_youtube_title(original_title)
-        print(f"Cleaned Title for Search: \"{cleaned_title}\"")
+        best_track = find_best_track(api_key, query, resolved_title)
 
-        tracks = search_lastfm_and_parse(api_key, cleaned_title)
-
-        print("--- Last.fm Parsed API Response ---")
-        if tracks:
-            for i, track in enumerate(tracks):
-                print(f"  Result {i+1}:")
-                print(f"    Name:      {track.get('name', 'N/A')}")
-                print(f"    Artist:    {track.get('artist', 'N/A')}")
-                print(f"    URL:       {track.get('url', 'N/A')}")
-                print(f"    Listeners: {track.get('listeners', 'N/A')}")
+        print("--- Last.fm Best Match ---")
+        if best_track:
+            print(f"  Name:      {best_track.get('name', 'N/A')}")
+            print(f"  Artist:    {best_track.get('artist', 'N/A')}")
+            print(f"  URL:       {best_track.get('url', 'N/A')}")
+            print(f"  Listeners: {best_track.get('listeners', 'N/A')}")
         else:
-            print("  No tracks found or error in API request.")
-        print("-----------------------------------")
+            print("  No suitable track found.")
+        print("--------------------------")
+
 
     print("\nTesting finished. The script will now exit.")
 
 if __name__ == '__main__':
     main()
+

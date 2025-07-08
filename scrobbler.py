@@ -10,9 +10,11 @@ import hashlib
 from dotenv import load_dotenv
 from lastfm_auth import get_last_fm_api_key, get_last_fm_api_secret, get_last_fm_session_key, sign_request, get_auth_token, get_session_key
 from datetime import datetime, timezone
+from thefuzz import fuzz
 
 LAST_FM_API_URL = "http://ws.audioscrobbler.com/2.0/"
 LAST_FM_MIN_LISTENERS = 1000
+SIMILARITY_THRESHOLD = 70
 
 load_dotenv()
 
@@ -92,7 +94,7 @@ def search_lastfm_and_parse(api_key, title):
         'track': title,
         'api_key': api_key,
         'format': 'json',
-        'limit': 5 # Fetch up to 5 results
+        'limit': 10 # Fetch up to 10 results
     }
     try:
         response = requests.get(LAST_FM_API_URL, params=params)
@@ -114,40 +116,36 @@ def search_lastfm_and_parse(api_key, title):
 def find_best_track(api_key, query, resolved_title):
     """
     Searches Last.fm for a track, first using the query and then the resolved_title.
-    Returns the first track found with more than 1000 listeners.
+    Returns the first track found with more than 1000 listeners and a high similarity score.
     """
     # Expand abbreviations in the query
     expanded_query = expand_abbreviations(query)
-    
+
     # Check if the query is a YouTube URL
     youtube_regex = r'(https?://)?(www\.)?(youtube\.com|youtu\.be)/.+'
     is_youtube_url = re.match(youtube_regex, expanded_query)
 
+    search_query = ""
     if not is_youtube_url:
-        # 1. Try with the query if it's not a YouTube URL
-        cleaned_query = clean_youtube_title(expanded_query)
-        print(f"Searching Last.fm with query: \"{cleaned_query}\"")
-        tracks = search_lastfm_and_parse(api_key, cleaned_query)
-        if tracks:
-            for track in tracks:
-                if int(track.get('listeners', 0)) > LAST_FM_MIN_LISTENERS:
-                    print("Found suitable track from query.")
-                    return track
+        search_query = clean_youtube_title(expanded_query)
     else:
-        print("Query is a YouTube URL, skipping to resolved_title.")
+        search_query = clean_youtube_title(resolved_title)
 
-    # 2. Fallback to resolved_title
-    cleaned_resolved_title = clean_youtube_title(resolved_title)
-    print(f"Falling back to resolved_title. Searching Last.fm with: \"{cleaned_resolved_title}\"")
-    tracks = search_lastfm_and_parse(api_key, cleaned_resolved_title)
+    print(f"Searching Last.fm with query: \"{search_query}\"")
+    tracks = search_lastfm_and_parse(api_key, search_query)
+
     if tracks:
         for track in tracks:
-            if int(track.get('listeners', 0)) > LAST_FM_MIN_LISTENERS:
-                print("Found suitable track from resolved_title.")
+            lastfm_title = track.get('name', '')
+            similarity_score = fuzz.ratio(search_query.lower(), lastfm_title.lower())
+
+            print(f"  - Comparing '{search_query}' with '{lastfm_title}' (Similarity: {similarity_score}%)")
+
+            if similarity_score >= SIMILARITY_THRESHOLD and int(track.get('listeners', 0)) > LAST_FM_MIN_LISTENERS:
+                print(f"Found suitable track: '{lastfm_title}' with {track.get('listeners')} listeners.")
                 return track
 
-    # 3. If nothing is found
-    print(f"No track found with over {LAST_FM_MIN_LISTENERS} listeners from either query or resolved_title.")
+    print(f"No track found with over {LAST_FM_MIN_LISTENERS} listeners and {SIMILARITY_THRESHOLD}% similarity.")
     return None
 
 def scrobble_track(api_key, api_secret, session_key, track, artist, timestamp_str):
@@ -198,10 +196,9 @@ def update_song_status(request_id, status):
     conn.close()
     print(f"Updated song {request_id} to status '{status}'.")
 
-# --- TEMPORARY DEBUG FUNCTION ---
 def test_manual_query(api_key, query_string):
     """
-    Takes a query string and prints the Last.fm API response.
+    Takes a query string and prints the Last.fm API response, including similarity matching.
     """
     print(f"--- Running Manual Test Query ---")
     print(f"Query: \"{query_string}\"")
@@ -221,16 +218,23 @@ def test_manual_query(api_key, query_string):
             print(f"  Result {i+1}:")
             print(f"    Name:      {track.get('name', 'N/A')}")
             print(f"    Artist:    {track.get('artist', 'N/A')}")
-            print(f"    URL:       {track.get('url', 'N/A')}")
             print(f"    Listeners: {track.get('listeners', 'N/A')}")
     else:
         print("  No tracks found or error in API request.")
-    print("-----------------------------------")
+
+    print("--- Best Match Found ---")
+    best_track = find_best_track(api_key, cleaned_query, cleaned_query) # Use cleaned_query for both
+
+    if best_track:
+        print(f"  Name:      {best_track.get('name', 'N/A')}")
+        print(f"  Artist:    {best_track.get('artist', 'N/A')}")
+        print(f"  URL:       {best_track.get('url', 'N/A')}")
+        print(f"  Listeners: {best_track.get('listeners', 'N/A')}")
+    else:
+        print("  No suitable track found based on the criteria.")
+    print("--------------------------")
 
 def main():
-    """
-    Main function to test Last.fm API by fetching 5 songs and printing parsed results.
-    """
     parser = argparse.ArgumentParser(description="Scrobbler script with temporary debug options.")
     parser.add_argument('--test-query', type=str, help='Run a single test query against the Last.fm API.')
     parser.add_argument('--run-once', action='store_true', help='Run the scrobbler once and exit.')

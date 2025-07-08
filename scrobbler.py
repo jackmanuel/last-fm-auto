@@ -15,6 +15,7 @@ from thefuzz import fuzz
 LAST_FM_API_URL = "http://ws.audioscrobbler.com/2.0/"
 LAST_FM_MIN_LISTENERS = 1000
 SIMILARITY_THRESHOLD = 70
+LAST_FM_SEARCH_LIMIT = 10
 
 load_dotenv()
 
@@ -42,7 +43,20 @@ def load_abbreviations(file_path='abbreviations.json'):
         print(f"Warning: Could not decode {file_path}. No abbreviations will be loaded.")
         return {}
 
+def load_searchable_tracks(file_path='searchable_tracks.json'):
+    """Loads the searchable tracks from a JSON file."""
+    try:
+        with open(file_path, 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        print(f"Warning: {file_path} not found. No searchable tracks will be loaded.")
+        return []
+    except json.JSONDecodeError:
+        print(f"Warning: Could not decode {file_path}. No searchable tracks will be loaded.")
+        return []
+
 ABBREVIATION_MAP = load_abbreviations()
+SEARCHABLE_TRACKS = load_searchable_tracks()
 
 def expand_abbreviations(query):
     """Expands known abbreviations in the query string."""
@@ -94,7 +108,7 @@ def search_lastfm_and_parse(api_key, title):
         'track': title,
         'api_key': api_key,
         'format': 'json',
-        'limit': 10 # Fetch up to 10 results
+        'limit': LAST_FM_SEARCH_LIMIT
     }
     try:
         response = requests.get(LAST_FM_API_URL, params=params)
@@ -111,6 +125,21 @@ def search_lastfm_and_parse(api_key, title):
     except (KeyError, IndexError):
         print(f"Could not parse Last.fm API response for title: {title}")
         return None
+
+def find_match_in_local_json(query):
+    """
+    Searches for a matching track in the local searchable_tracks.json.
+    """
+    for track_info in SEARCHABLE_TRACKS:
+        local_track_title = track_info.get("track")
+        if not local_track_title:
+            continue
+
+        similarity_score = fuzz.ratio(query.lower(), local_track_title.lower())
+        if similarity_score >= SIMILARITY_THRESHOLD:
+            print(f"Found suitable track in local JSON: '{local_track_title}' (Similarity: {similarity_score}%)")
+            return {"name": local_track_title, "artist": track_info.get("artist")}
+    return None
 
 
 def find_best_track(api_key, query, resolved_title):
@@ -130,6 +159,11 @@ def find_best_track(api_key, query, resolved_title):
         search_query = clean_youtube_title(expanded_query)
     else:
         search_query = clean_youtube_title(resolved_title)
+
+    # First, try to find a match in the local JSON file
+    local_match = find_match_in_local_json(search_query)
+    if local_match:
+        return local_match
 
     print(f"Searching Last.fm with query: \"{search_query}\"")
     tracks = search_lastfm_and_parse(api_key, search_query)
@@ -271,12 +305,20 @@ def main():
     session_key = get_last_fm_session_key()
 
     def scrobble_new_songs():
-        print("Checking for new songs...")
+        sys.stdout.write("Checking for new songs...")
+        sys.stdout.flush()
+        
         new_songs = get_new_songs(GUILD_ID)
+        
         if not new_songs:
-            print("No new songs found.")
+            # Clear the "Checking for new songs..." message if none are found
+            sys.stdout.write("\r" + " " * 40 + "\r")
+            sys.stdout.flush()
             return
 
+        # If songs are found, move to the next line before printing details
+        sys.stdout.write("\n")
+        sys.stdout.flush()
         print(f"Found {len(new_songs)} new songs. Processing...")
         for song in new_songs:
             query = song['query']
@@ -314,10 +356,21 @@ def main():
 
     try:
         print("Scrobbler starting in continuous mode...")
+        print("Will check for new songs every 30 seconds.")
         while True:
             scrobble_new_songs()
-            print("\nWaiting for 30 seconds before next check...")
-            time.sleep(30)
+            
+            # Wait for 30 seconds with a spinning cursor
+            wait_time = 30
+            spinner = ['|', '/', '-', '\\']
+            for i in range(wait_time * 4): # Run for 30 seconds, updating 4 times per second
+                sys.stdout.write(f"\rWaiting for new song plays... {spinner[i % 4]}")
+                sys.stdout.flush()
+                time.sleep(0.25)
+            # Clear the line after waiting
+            sys.stdout.write("\r" + " " * 40 + "\r")
+            sys.stdout.flush()
+
     except KeyboardInterrupt:
         print("\nScrobbler stopped by user.")
         sys.exit(0)

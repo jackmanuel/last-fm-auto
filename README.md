@@ -21,9 +21,8 @@ This project automatically scrobbles songs played by a Discord music bot to a de
     *   Create a `.env` file in the root directory with the following:
         ```
         LAST_FM_API_KEY="your_last_fm_api_key"
-        LAST_FM_API_SECRET="your_last_fm_api_secret"
-        LAST_FM_USERNAME="your_last_fm_username"
-        LAST_FM_PASSWORD_HASH="md5_hash_of_your_last_fm_password"
+        LAST_FM_SHARED_SECRET="your_last_fm_api_secret"
+        LAST_FM_SESSION_KEY="you_last_fm_session_key"
         DATABASE_PATH="/path/to/your/database.db"
         GUILD_ID="your_discord_guild_id"
         ```
@@ -32,4 +31,5 @@ This project automatically scrobbles songs played by a Discord music bot to a de
     *   Ensure the SQLite database specified in `DATABASE_PATH` exists and contains a `play_history` table. A setup script may be required if one does not exist.
 
 4.  **Run the Scrobbler:**
-    *   Execute the script: `python scrobbler.py`
+    *   If on windows, there is a batch script: `./run_scrobbler.bat`
+    *   You can also start the bot with python directly: `python scrobbler.py`

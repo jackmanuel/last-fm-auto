@@ -168,7 +168,7 @@ __marimo__/
 apostrophe.py
 
 # large files
-evaluation\last_fm_search_results_0709.json
+evaluation/last_fm_search_results_0709.json
 
 # Tuning results
-evaluation\tuning_results.txt
+evaluation/tuning_results.txt

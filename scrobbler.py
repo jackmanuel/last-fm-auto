@@ -12,8 +12,6 @@ from datetime import datetime, timezone
 from thefuzz import fuzz
 
 LAST_FM_API_URL = "http://ws.audioscrobbler.com/2.0/"
-LAST_FM_MIN_LISTENERS = 1000
-SIMILARITY_THRESHOLD = 70
 LAST_FM_SEARCH_LIMIT = 10
 
 load_dotenv()
@@ -129,6 +127,7 @@ def find_match_in_local_json(query):
     """
     Searches for a matching track in the local searchable_tracks.json.
     """
+    SIMILARITY_THRESHOLD = 70
     for track_info in SEARCHABLE_TRACKS:
         local_track_title = track_info.get("track")
         if not local_track_title:
@@ -143,9 +142,8 @@ def find_match_in_local_json(query):
 
 def _find_best_match_for_query(api_key, search_query):
     """
-    Helper function to search for a query and return the best match.
-    The best match is the one with the most listeners among all results
-    that meet the similarity and listener count thresholds.
+    Helper function to search for a query and return the best match using a
+    weighted scoring model.
     """
     # First, try to find a match in the local JSON file
     local_match = find_match_in_local_json(search_query)
@@ -158,34 +156,44 @@ def _find_best_match_for_query(api_key, search_query):
     if not tracks:
         return None
 
-    valid_candidates = []
-    for track in tracks:
-        lastfm_title = track.get('name', '')
-        similarity_score = fuzz.ratio(search_query.lower(), lastfm_title.lower())
-        listeners = int(track.get('listeners', 0))
+    # --- Weighted Scoring Model ---
+    w_sim = 0.6
+    w_listeners = 0.4
 
-        print(f"  - Comparing '{search_query}' with '{lastfm_title}' (Similarity: {similarity_score}%, Listeners: {listeners})")
+    listeners = [int(track.get('listeners', 0)) for track in tracks]
+    max_listeners = max(listeners) if listeners else 0
 
-        if similarity_score >= SIMILARITY_THRESHOLD and listeners > LAST_FM_MIN_LISTENERS:
-            valid_candidates.append(track)
-            print(f"    -> Candidate found: '{lastfm_title}'")
+    best_track = None
+    max_score = -1
 
-    if not valid_candidates:
-        return None
+    print(f"  - Scoring {len(tracks)} results with w_sim={w_sim}, w_listeners={w_listeners}...")
 
-    # Sort candidates by the number of listeners in descending order
-    best_match = sorted(valid_candidates, key=lambda t: int(t.get('listeners', 0)), reverse=True)[0]
+    for i, track in enumerate(tracks):
+        similarity_score = fuzz.ratio(search_query.lower(), track.get('name', '').lower())
+        norm_sim = similarity_score / 100.0
+
+        current_listeners = int(listeners[i])
+        norm_listeners = (current_listeners / max_listeners) if max_listeners > 0 else 0
+        
+        score = (w_sim * norm_sim) + (w_listeners * norm_listeners)
+
+        print(f"    - Candidate: '{track.get('name', '')}' (Sim: {norm_sim:.2f}, Listeners: {norm_listeners:.2f}) -> Score: {score:.3f}")
+
+        if score > max_score:
+            max_score = score
+            best_track = track
     
-    # Recalculate similarity for the final print message to be accurate
-    final_similarity = fuzz.ratio(search_query.lower(), best_match.get('name', '').lower())
-    print(f"Found best match: '{best_match.get('name')}' with {best_match.get('listeners')} listeners and {final_similarity}% similarity.")
-    return best_match
+    if best_track:
+        final_similarity = fuzz.ratio(search_query.lower(), best_track.get('name', '').lower())
+        print(f"Found best match: '{best_track.get('name')}' with {best_track.get('listeners')} listeners and {final_similarity}% similarity (Score: {max_score:.3f}).")
+    
+    return best_track
 
 
 def find_best_track(api_key, query, resolved_title):
     """
     Searches Last.fm for a track, trying the query and resolved_title.
-    Finds the result with the highest similarity score that also has enough listeners.
+    Finds the result with the highest weighted score.
     """
     expanded_query = expand_abbreviations(query)
     cleaned_query = clean_youtube_title(expanded_query)
@@ -211,8 +219,9 @@ def find_best_track(api_key, query, resolved_title):
         if len(search_terms) > 1 and term != search_terms[-1]:
             print(f"Search for '{term}' failed. Trying next fallback.")
 
-    print(f"No track found with over {LAST_FM_MIN_LISTENERS} listeners and {SIMILARITY_THRESHOLD}% similarity.")
+    print(f"No suitable track found after trying all search terms.")
     return None
+
 
 
 
@@ -292,39 +301,17 @@ def test_manual_query(api_key, query_string):
         print(f"    Artist:    {track.get('artist', 'N/A')}")
         print(f"    Listeners: {track.get('listeners', 'N/A')}")
 
-    # --- Step 2: Filter for Valid Candidates ---
-    print(f"\n--- 2. Filtering Candidates (Similarity >= {SIMILARITY_THRESHOLD}%, Listeners > {LAST_FM_MIN_LISTENERS}) ---")
-    valid_candidates = []
-    for track in tracks:
-        lastfm_title = track.get('name', '')
-        similarity_score = fuzz.ratio(cleaned_query.lower(), lastfm_title.lower())
-        listeners = int(track.get('listeners', 0))
+    # --- Step 2: Find Best Match using Weighted Scoring ---
+    print("\n--- 2. Finding Best Match with Weighted Scoring ---")
+    best_match = _find_best_match_for_query(api_key, cleaned_query)
 
-        print(f"  - Comparing '{lastfm_title}' (Similarity: {similarity_score}%, Listeners: {listeners})")
-
-        if similarity_score >= SIMILARITY_THRESHOLD and listeners > LAST_FM_MIN_LISTENERS:
-            valid_candidates.append(track)
-            print(f"    -> QUALIFIED as a candidate.")
-
-    # --- Step 3: Select Best Candidate ---
-    print("\n--- 3. Selecting Best Match (Highest Listeners) ---")
-    if not valid_candidates:
-        print("  No valid candidates found.")
+    # --- Step 3: Display Final Result ---
+    print("\n--- 3. Final Best Match Selected ---")
+    if not best_match:
+        print("  No match found.")
         print("--------------------------")
         return
-
-    if len(valid_candidates) > 1:
-        print("  Multiple candidates found. Sorting by listeners:")
-        # Sort candidates by the number of listeners in descending order
-        best_match = sorted(valid_candidates, key=lambda t: int(t.get('listeners', 0)), reverse=True)[0]
-        for cand in sorted(valid_candidates, key=lambda t: int(t.get('listeners', 0)), reverse=True):
-             print(f"    - {cand.get('name')} ({cand.get('listeners')} listeners)")
-    else:
-        best_match = valid_candidates[0]
-        print("  Only one candidate found.")
-
-
-    print("\n--- Final Best Match Selected ---")
+    
     print(f"  Name:      {best_match.get('name', 'N/A')}")
     print(f"  Artist:    {best_match.get('artist', 'N/A')}")
     print(f"  Listeners: {best_match.get('listeners', 'N/A')}")

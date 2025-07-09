@@ -153,6 +153,9 @@ def main():
     ground_truth_csv = os.path.join('evaluation', 'ground_truth_data_v2.csv')
     search_results_json = os.path.join('evaluation', 'last_fm_search_results_0709.json')
 
+    print(f"Using ground truth data: '{ground_truth_csv}'")
+    print(f"Using search results: '{search_results_json}'")
+
     ground_truth_df, search_results = load_data(ground_truth_csv, search_results_json)
     
     print(f"Loaded {len(ground_truth_df)} annotated records.")

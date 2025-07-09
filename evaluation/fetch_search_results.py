@@ -55,7 +55,7 @@ def main():
     Main function to drive the data fetching and saving process.
     """
     input_csv_path = os.path.join('evaluation', 'ground_truth_data_v1.csv')
-    output_json_path = os.path.join('evaluation', 'last_fm_search_results_0709.json')
+    output_json_path = os.path.join('evaluation', f'last_fm_search_results_{time.strftime("%m%d")}.json')
 
     if not os.path.exists(input_csv_path):
         print(f"Error: Input file not found at '{input_csv_path}'")

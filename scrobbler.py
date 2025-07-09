@@ -6,7 +6,6 @@ import re
 import requests
 import json
 import argparse
-import hashlib
 from dotenv import load_dotenv
 from lastfm_auth import get_last_fm_api_key, get_last_fm_api_secret, get_last_fm_session_key, sign_request, get_auth_token, get_session_key
 from datetime import datetime, timezone
@@ -142,24 +141,12 @@ def find_match_in_local_json(query):
     return None
 
 
-def find_best_track(api_key, query, resolved_title):
+def _find_best_match_for_query(api_key, search_query):
     """
-    Searches Last.fm for a track, first using the query and then the resolved_title.
-    Returns the first track found with more than 1000 listeners and a high similarity score.
+    Helper function to search for a query and return the best match.
+    The best match is the one with the most listeners among all results
+    that meet the similarity and listener count thresholds.
     """
-    # Expand abbreviations in the query
-    expanded_query = expand_abbreviations(query)
-
-    # Check if the query is a YouTube URL
-    youtube_regex = r'(https?://)?(www\.)?(youtube\.com|youtu\.be)/.+'
-    is_youtube_url = re.match(youtube_regex, expanded_query)
-
-    search_query = ""
-    if not is_youtube_url:
-        search_query = clean_youtube_title(expanded_query)
-    else:
-        search_query = clean_youtube_title(resolved_title)
-
     # First, try to find a match in the local JSON file
     local_match = find_match_in_local_json(search_query)
     if local_match:
@@ -168,19 +155,66 @@ def find_best_track(api_key, query, resolved_title):
     print(f"Searching Last.fm with query: \"{search_query}\"")
     tracks = search_lastfm_and_parse(api_key, search_query)
 
-    if tracks:
-        for track in tracks:
-            lastfm_title = track.get('name', '')
-            similarity_score = fuzz.ratio(search_query.lower(), lastfm_title.lower())
+    if not tracks:
+        return None
 
-            print(f"  - Comparing '{search_query}' with '{lastfm_title}' (Similarity: {similarity_score}%)")
+    valid_candidates = []
+    for track in tracks:
+        lastfm_title = track.get('name', '')
+        similarity_score = fuzz.ratio(search_query.lower(), lastfm_title.lower())
+        listeners = int(track.get('listeners', 0))
 
-            if similarity_score >= SIMILARITY_THRESHOLD and int(track.get('listeners', 0)) > LAST_FM_MIN_LISTENERS:
-                print(f"Found suitable track: '{lastfm_title}' with {track.get('listeners')} listeners.")
-                return track
+        print(f"  - Comparing '{search_query}' with '{lastfm_title}' (Similarity: {similarity_score}%, Listeners: {listeners})")
+
+        if similarity_score >= SIMILARITY_THRESHOLD and listeners > LAST_FM_MIN_LISTENERS:
+            valid_candidates.append(track)
+            print(f"    -> Candidate found: '{lastfm_title}'")
+
+    if not valid_candidates:
+        return None
+
+    # Sort candidates by the number of listeners in descending order
+    best_match = sorted(valid_candidates, key=lambda t: int(t.get('listeners', 0)), reverse=True)[0]
+    
+    # Recalculate similarity for the final print message to be accurate
+    final_similarity = fuzz.ratio(search_query.lower(), best_match.get('name', '').lower())
+    print(f"Found best match: '{best_match.get('name')}' with {best_match.get('listeners')} listeners and {final_similarity}% similarity.")
+    return best_match
+
+
+def find_best_track(api_key, query, resolved_title):
+    """
+    Searches Last.fm for a track, trying the query and resolved_title.
+    Finds the result with the highest similarity score that also has enough listeners.
+    """
+    expanded_query = expand_abbreviations(query)
+    cleaned_query = clean_youtube_title(expanded_query)
+    cleaned_resolved_title = clean_youtube_title(resolved_title)
+
+    search_terms = []
+    
+    youtube_regex = r'(https?://)?(www\.)?(youtube\.com|youtu\.be)/.+'
+    is_youtube_url = re.match(youtube_regex, expanded_query)
+
+    if is_youtube_url:
+        search_terms.append(cleaned_resolved_title)
+    else:
+        search_terms.append(cleaned_query)
+        # Add resolved_title as a fallback if it's different.
+        if cleaned_resolved_title.lower() != cleaned_query.lower():
+            search_terms.append(cleaned_resolved_title)
+
+    for term in search_terms:
+        best_track = _find_best_match_for_query(api_key, term)
+        if best_track:
+            return best_track
+        if len(search_terms) > 1 and term != search_terms[-1]:
+            print(f"Search for '{term}' failed. Trying next fallback.")
 
     print(f"No track found with over {LAST_FM_MIN_LISTENERS} listeners and {SIMILARITY_THRESHOLD}% similarity.")
     return None
+
+
 
 def scrobble_track(api_key, api_secret, session_key, track, artist, timestamp_str):
     """Scrobbles a track to Last.fm."""
@@ -232,40 +266,68 @@ def update_song_status(request_id, status):
 
 def test_manual_query(api_key, query_string):
     """
-    Takes a query string and prints the Last.fm API response, including similarity matching.
+    Takes a query string, runs it through the matching logic, and prints detailed results.
+    Does not scrobble.
     """
     print(f"--- Running Manual Test Query ---")
     print(f"Query: \"{query_string}\"")
 
-    # Expand abbreviations in the manual query
+    # Expand and clean the query
     expanded_query = expand_abbreviations(query_string)
     print(f"Expanded Query: \"{expanded_query}\"")
-
     cleaned_query = clean_youtube_title(expanded_query)
     print(f"Cleaned Query for Search: \"{cleaned_query}\"")
 
+    # --- Step 1: Search Last.fm ---
+    print("\n--- 1. Last.fm API Search Results ---")
     tracks = search_lastfm_and_parse(api_key, cleaned_query)
-
-    print("--- Last.fm Parsed API Response ---")
-    if tracks:
-        for i, track in enumerate(tracks):
-            print(f"  Result {i+1}:")
-            print(f"    Name:      {track.get('name', 'N/A')}")
-            print(f"    Artist:    {track.get('artist', 'N/A')}")
-            print(f"    Listeners: {track.get('listeners', 'N/A')}")
-    else:
+    if not tracks:
         print("  No tracks found or error in API request.")
+        print("--------------------------")
+        return
 
-    print("--- Best Match Found ---")
-    best_track = find_best_track(api_key, cleaned_query, cleaned_query) # Use cleaned_query for both
+    for i, track in enumerate(tracks):
+        print(f"  Result {i+1}:")
+        print(f"    Name:      {track.get('name', 'N/A')}")
+        print(f"    Artist:    {track.get('artist', 'N/A')}")
+        print(f"    Listeners: {track.get('listeners', 'N/A')}")
 
-    if best_track:
-        print(f"  Name:      {best_track.get('name', 'N/A')}")
-        print(f"  Artist:    {best_track.get('artist', 'N/A')}")
-        print(f"  URL:       {best_track.get('url', 'N/A')}")
-        print(f"  Listeners: {best_track.get('listeners', 'N/A')}")
+    # --- Step 2: Filter for Valid Candidates ---
+    print(f"\n--- 2. Filtering Candidates (Similarity >= {SIMILARITY_THRESHOLD}%, Listeners > {LAST_FM_MIN_LISTENERS}) ---")
+    valid_candidates = []
+    for track in tracks:
+        lastfm_title = track.get('name', '')
+        similarity_score = fuzz.ratio(cleaned_query.lower(), lastfm_title.lower())
+        listeners = int(track.get('listeners', 0))
+
+        print(f"  - Comparing '{lastfm_title}' (Similarity: {similarity_score}%, Listeners: {listeners})")
+
+        if similarity_score >= SIMILARITY_THRESHOLD and listeners > LAST_FM_MIN_LISTENERS:
+            valid_candidates.append(track)
+            print(f"    -> QUALIFIED as a candidate.")
+
+    # --- Step 3: Select Best Candidate ---
+    print("\n--- 3. Selecting Best Match (Highest Listeners) ---")
+    if not valid_candidates:
+        print("  No valid candidates found.")
+        print("--------------------------")
+        return
+
+    if len(valid_candidates) > 1:
+        print("  Multiple candidates found. Sorting by listeners:")
+        # Sort candidates by the number of listeners in descending order
+        best_match = sorted(valid_candidates, key=lambda t: int(t.get('listeners', 0)), reverse=True)[0]
+        for cand in sorted(valid_candidates, key=lambda t: int(t.get('listeners', 0)), reverse=True):
+             print(f"    - {cand.get('name')} ({cand.get('listeners')} listeners)")
     else:
-        print("  No suitable track found based on the criteria.")
+        best_match = valid_candidates[0]
+        print("  Only one candidate found.")
+
+
+    print("\n--- Final Best Match Selected ---")
+    print(f"  Name:      {best_match.get('name', 'N/A')}")
+    print(f"  Artist:    {best_match.get('artist', 'N/A')}")
+    print(f"  Listeners: {best_match.get('listeners', 'N/A')}")
     print("--------------------------")
 
 def main():

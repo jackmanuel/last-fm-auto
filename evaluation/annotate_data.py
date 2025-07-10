@@ -1,76 +1,78 @@
+# evaluation/annotate_data.py
 """
-Automates the process of annotating the ground truth dataset.
+A command-line tool to interactively annotate a ground truth dataset.
 
-This script reads the 'ground_truth_data.csv' file, iterates through each
-row, and checks if the ground truth 'track_gt' and 'artist_gt' columns
-are already filled.
-
-For each row that needs annotation, it:
-1. Clears the screen for better visibility.
-2. Displays the current query being processed.
-3. Runs the `scrobbler.py --test-query` command with the query.
-4. Prompts the user to input the correct track and artist name based on the output.
-5. Allows the user to skip a query if needed.
-6. Saves the input back to the CSV file immediately, allowing the user to
-   stop and resume the process without losing progress.
+This script reads a ground truth CSV file, and for each row that needs
+annotation, it:
+1. Displays the query information from the CSV.
+2. Runs the project's core `pipeline.find_best_track` function to get the
+   algorithm's best guess for a match.
+3. Displays the algorithm's guess to the user.
+4. Prompts the user to input the correct "ground truth" track and artist.
+5. Saves progress to the CSV file after each annotation.
 """
 import pandas as pd
-import subprocess
 import os
 import sys
+import argparse
+
+from last_fm_auto import pipeline
 
 def clear_screen():
-    """Clears the console screen."""
+    """Clears the console screen for better visibility."""
     os.system('cls' if os.name == 'nt' else 'clear')
 
-def annotate_ground_truth(csv_path):
+def annotate_ground_truth(csv_path, id_col, query_col, title_col):
     """
-    Iterates through the ground truth CSV, runs test queries, and prompts
-    the user for manual annotation.
+    Iterates through a ground truth CSV, runs the internal matching pipeline,
+    and prompts the user for manual annotation.
     """
-    if not os.path.exists(csv_path):
+    try:
+        df = pd.read_csv(csv_path)
+    except FileNotFoundError:
         print(f"Error: The file '{csv_path}' was not found.")
-        print("Please run 'tune_hyperparameters.py' first to generate it.")
         sys.exit(1)
 
-    # Load the CSV file into a pandas DataFrame
-    df = pd.read_csv(csv_path)
-    
+    # Ensure required columns exist
+    required_cols = [id_col, query_col, title_col, 'track_gt', 'artist_gt']
+    if not all(col in df.columns for col in required_cols):
+        print(f"Error: CSV must contain the columns: {', '.join(required_cols)}")
+        sys.exit(1)
+
     total_rows = len(df)
     annotated_rows = df['track_gt'].notna().sum()
 
-    print(f"Starting annotation process...")
+    print(f"Starting annotation process for: {os.path.basename(csv_path)}")
     print(f"Total records: {total_rows} | Annotated: {annotated_rows} | Remaining: {total_rows - annotated_rows}")
     input("Press Enter to begin...")
 
     for index, row in df.iterrows():
-        # Check if 'track_gt' is empty or NaN
+        # Annotate if the ground truth track name is missing
         if pd.isna(row['track_gt']) or not row['track_gt']:
             clear_screen()
             
-            print(f"--- Annotating Record {row['id']} of {total_rows} ---")
-            print(f"Query:          {row['query']}")
-            print(f"Resolved Title: {row['resolved_title']}")
+            # --- Display Information to User ---
+            print(f"--- Annotating Record {row[id_col]} of {total_rows} ---")
+            print(f"Query (from '{query_col}'):    {row[query_col]}")
+            print(f"Resolved Title (from '{title_col}'): {row[title_col]}")
             print("-" * 20)
 
-            # Construct and run the command
-            command = ['python', 'scrobbler.py', '--test-query', row['query']]
-            try:
-                # We use shell=True on Windows to ensure commands with quotes are handled correctly
-                is_windows = os.name == 'nt'
-                subprocess.run(command, text=True, check=True, shell=is_windows)
-            except subprocess.CalledProcessError as e:
-                print(f"Error running scrobbler.py: {e}")
-                continue
-            except FileNotFoundError:
-                print("Error: 'python' command not found. Make sure Python is in your system's PATH.")
-                sys.exit(1)
-
+            # --- Run the internal pipeline to get the algorithm's best guess ---
+            print("\n--- Algorithm's Best Guess ---")
+            best_track = pipeline.find_best_track(
+                original_query=str(row[query_col]),
+                resolved_title=str(row[title_col])
+            )
+            if best_track:
+                print(f"  Track:  {best_track.get('name')}")
+                print(f"  Artist: {best_track.get('artist')}")
+            else:
+                print("  Algorithm found no suitable match.")
+            
+            # --- Prompt User for Annotation ---
             print("\n--- Manual Annotation ---")
-            print("Enter the correct track and artist below based on the results.")
-            print("Type 's' to skip this entry, or 'q' to quit.")
+            print("Enter the correct track and artist below. Type 's' to skip, 'q' to quit.")
 
-            # Get user input
             track_gt = input("Ground Truth Track Name: ").strip()
             if track_gt.lower() == 'q':
                 break
@@ -85,7 +87,7 @@ def annotate_ground_truth(csv_path):
                 print("Skipping...")
                 continue
 
-            # Update the DataFrame and save to CSV
+            # Update DataFrame and save immediately to prevent data loss
             df.at[index, 'track_gt'] = track_gt
             df.at[index, 'artist_gt'] = artist_gt
             df.to_csv(csv_path, index=False)
@@ -97,7 +99,25 @@ def annotate_ground_truth(csv_path):
     final_annotated = df['track_gt'].notna().sum()
     print(f"Total records: {total_rows} | Annotated: {final_annotated}")
 
-
 if __name__ == '__main__':
-    csv_file_path = os.path.join('evaluation', 'ground_truth_data.csv')
-    annotate_ground_truth(csv_file_path)
+    parser = argparse.ArgumentParser(description="Interactively annotate a ground truth data file.")
+    parser.add_argument(
+        "--csv-file",
+        required=True,
+        help="Path to the CSV file to be annotated (e.g., evaluation/data/ground_truth_data.csv)."
+    )
+    parser.add_argument(
+        "--id-column", default="id",
+        help="Name of the column containing the unique ID."
+    )
+    parser.add_argument(
+        "--query-column", default="query",
+        help="Name of the column containing the original query string."
+    )
+    parser.add_argument(
+        "--title-column", default="resolved_title",
+        help="Name of the column containing the resolved title (especially for YouTube links)."
+    )
+    args = parser.parse_args()
+        
+    annotate_ground_truth(args.csv_file, args.id_column, args.query_column, args.title_column)

@@ -85,6 +85,11 @@ def main():
         query_id = row[args.id_column]
         original_query = row[args.query_column]
 
+        is_youtube_url = 'youtube.com' in original_query or 'youtu.be' in original_query
+        if is_youtube_url:
+            # The query is a YouTube URL, use the resolved title instead
+            original_query = row['resolved_title']
+
         expanded_query = preprocessing.expand_abbreviations(str(original_query))
         search_query = preprocessing.clean_youtube_title(expanded_query)
         

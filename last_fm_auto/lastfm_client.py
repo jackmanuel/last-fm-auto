@@ -67,7 +67,7 @@ def get_session_key(api_key, api_secret, token):
         return None
     
 
-# --- Search and Scrobbling Functions ---S
+# --- Search and Scrobbling Functions ---
 
 def search_track(query: str) -> list | None:
     """Searches Last.fm API, parses the JSON, and returns the list of tracks."""

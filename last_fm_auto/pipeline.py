@@ -51,11 +51,14 @@ def _find_best_match_from_api(search_query: str) -> dict | None:
             max_score = score
             best_track = track
     
-    if best_track:
+    if max_score >= config.REJECTION_THRESHOLD:
         final_sim = fuzz.ratio(search_query.lower(), best_track['name'].lower())
         print(f"Found best match: '{best_track['name']}' with a score of {max_score:.3f} and similarity {final_sim}%.")
-    
-    return best_track
+        return best_track
+    else:
+        # The best score was not good enough, so we reject it.
+        print(f"Found best match '{best_track['name']}', but score {max_score:.3f} is below threshold {config.REJECTION_THRESHOLD}. Rejecting.")
+        return None
 
 def find_best_track(original_query: str, resolved_title: str) -> dict | None:
     """
@@ -65,6 +68,7 @@ def find_best_track(original_query: str, resolved_title: str) -> dict | None:
     # Step 1: Pre-process inputs
     expanded_query = preprocessing.expand_abbreviations(original_query)
     cleaned_query = preprocessing.clean_youtube_title(expanded_query)
+
     cleaned_resolved_title = preprocessing.clean_youtube_title(resolved_title)
 
     # Step 2: Check local database first
@@ -84,7 +88,7 @@ def find_best_track(original_query: str, resolved_title: str) -> dict | None:
     for term in search_terms:
         best_track = _find_best_match_from_api(term)
         if best_track:
-            return best_track # Return the first successful result
+            return best_track
         print(f"Search for '{term}' failed. Trying next fallback if available.")
 
     print(f"No suitable track found after trying all search terms.")

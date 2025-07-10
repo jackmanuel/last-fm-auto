@@ -1,12 +1,13 @@
 # evaluation/tune_hyperparameters.py
 """
 Performs hyperparameter tuning for weighted sum strategies, now including a
-rejection threshold.
+rejection threshold and an absolute popularity threshold.
 
-This script searches a 3D grid of hyperparameters:
+This script searches a grid of hyperparameters:
   1. w_sim (weight for similarity)
   2. w_listeners (weight for popularity)
   3. rejection_threshold (minimum score to accept a match)
+  4. popularity_threshold (minimum absolute listeners to consider a track)
 
 Because the model can reject results, it uses Precision, Recall, and
 F1-score as its primary evaluation metrics.
@@ -23,29 +24,76 @@ from last_fm_auto import pipeline
 
 # --- Scoring Strategy Functions ---
 
-def select_best_track_linear(search_query: str, tracks: list, w_sim: float, w_listeners: float) -> tuple[dict | None, float]:
-    if not tracks: return None, 0.0
-    listeners = [int(t.get('listeners', 0)) for t in tracks]
-    max_listeners = max(listeners) if listeners else 0
-    best_track, max_score = None, -1
-    for i, track in enumerate(tracks):
-        norm_sim = fuzz.ratio(search_query.lower(), track.get('name', '').lower()) / 100.0
-        norm_listeners = (listeners[i] / max_listeners) if max_listeners > 0 else 0
+def _calculate_similarity(query: str, track_name: str, artist_name: str) -> float:
+    """Calculates the fuzzy string matching similarity score."""
+    sim_track_only = fuzz.ratio(query, track_name)
+    sim_artist_track = fuzz.ratio(query, f"{artist_name} {track_name}")
+    sim_track_artist = fuzz.ratio(query, f"{track_name} {artist_name}")
+    return max(sim_track_only, sim_artist_track, sim_track_artist) / 100.0
+
+def _select_best_track(
+    search_query: str,
+    tracks: list,
+    w_sim: float,
+    w_listeners: float,
+    popularity_threshold: int,
+    listener_transform: callable = lambda x: x
+) -> tuple[dict | None, float]:
+    """
+    Selects the best track from a list based on a weighted score of similarity and popularity.
+
+    Args:
+        search_query: The user's search query.
+        tracks: A list of track dictionaries.
+        w_sim: The weight for the similarity score.
+        w_listeners: The weight for the listener score.
+        popularity_threshold: The minimum number of listeners for a track to be considered.
+        listener_transform: A function to transform the listener count before normalization (e.g., np.log1p).
+                            Defaults to an identity function (no transformation).
+
+    Returns:
+        A tuple containing the best track dictionary and its score, or (None, 0.0) if no suitable track is found.
+    """
+    if not tracks:
+        return None, 0.0
+
+    # Filter out tracks below the popularity threshold
+    popular_tracks = [t for t in tracks if int(t.get('listeners', 0)) >= popularity_threshold]
+    if not popular_tracks:
+        return None, 0.0
+
+    # Apply the transformation to the listener counts
+    transformed_listeners = [listener_transform(int(t.get('listeners', 0))) for t in popular_tracks]
+    max_listeners = max(transformed_listeners) if transformed_listeners else 0
+
+    best_track, max_score = None, -1.0
+    query_lower = search_query.lower()
+
+    for i, track in enumerate(popular_tracks):
+        track_name = track.get('name', '').lower()
+        artist_name = track.get('artist', '').lower()
+
+        # Calculate normalized similarity score
+        norm_sim = _calculate_similarity(query_lower, track_name, artist_name)
+
+        # Calculate normalized listener score
+        norm_listeners = (transformed_listeners[i] / max_listeners) if max_listeners > 0 else 0
+        
+        # Calculate the final weighted score
         score = (w_sim * norm_sim) + (w_listeners * norm_listeners)
-        if score > max_score: max_score, best_track = score, track
+
+        if score > max_score:
+            max_score, best_track = score, track
+            
     return best_track, max_score
 
-def select_best_track_log(search_query: str, tracks: list, w_sim: float, w_listeners: float) -> tuple[dict | None, float]:
-    if not tracks: return None, 0.0
-    listeners = [np.log1p(int(t.get('listeners', 0))) for t in tracks]
-    max_listeners = max(listeners) if listeners else 0
-    best_track, max_score = None, -1
-    for i, track in enumerate(tracks):
-        norm_sim = fuzz.ratio(search_query.lower(), track.get('name', '').lower()) / 100.0
-        norm_log_listeners = (listeners[i] / max_listeners) if max_listeners > 0 else 0
-        score = (w_sim * norm_sim) + (w_listeners * norm_log_listeners)
-        if score > max_score: max_score, best_track = score, track
-    return best_track, max_score
+# You can now call the new function like this to get the old behaviors:
+
+def select_best_track_linear(search_query: str, tracks: list, w_sim: float, w_listeners: float, popularity_threshold: int) -> tuple[dict | None, float]:
+    return _select_best_track(search_query, tracks, w_sim, w_listeners, popularity_threshold)
+
+def select_best_track_log(search_query: str, tracks: list, w_sim: float, w_listeners: float, popularity_threshold: int) -> tuple[dict | None, float]:
+    return _select_best_track(search_query, tracks, w_sim, w_listeners, popularity_threshold, listener_transform=np.log1p)
 
 # --- Main Evaluation Logic ---
 
@@ -61,7 +109,7 @@ def load_data(ground_truth_csv: str, search_results_json: str) -> tuple[pd.DataF
     
     return df, search_results
 
-def evaluate_hyperparameters(df: pd.DataFrame, search_results: dict, w_sim: float, w_listeners: float, rejection_threshold: float, selection_function: callable) -> tuple[float, float, float, float, list]:
+def evaluate_hyperparameters(df: pd.DataFrame, search_results: dict, w_sim: float, w_listeners: float, rejection_threshold: float, popularity_threshold: int, selection_function: callable) -> tuple[float, float, float, float, list]:
     """
     Evaluates a set of hyperparameters.
     Returns: (precision, recall, f1_score, accuracy, list_of_failures)
@@ -78,7 +126,7 @@ def evaluate_hyperparameters(df: pd.DataFrame, search_results: dict, w_sim: floa
         results_data = search_results.get(str(row['id']))
         tracks = results_data.get('results', {}).get('trackmatches', {}).get('track', []) if results_data else []
         
-        best_track, score = selection_function(row['cleaned_query'], tracks, w_sim, w_listeners)
+        best_track, score = selection_function(row['cleaned_query'], tracks, w_sim, w_listeners, popularity_threshold)
         predicted_track = best_track if score >= rejection_threshold else None
 
         pred_name = predicted_track.get('name', '').lower().strip() if predicted_track else None
@@ -130,36 +178,41 @@ def main():
     filtered_df = df[~df['has_local_match']].copy()
     print(f"Tuning with {len(filtered_df)} records (after skipping {len(df) - len(filtered_df)} local matches).")
 
-    # --- 3D Hyperparameter Grid ---
+    # --- Hyperparameter Grid ---
     weights = np.arange(0.0, 1.05, 0.05)
-    thresholds = np.arange(0.0, 0.85, 0.05)
+    rejection_thresholds = np.arange(0.0, 0.85, 0.05)
+    popularity_thresholds = [0, 1, 2, 3, 4, 5, 10, 20, 30, 40, 50, 75, 100, 200, 300, 400, 500, 1000]
     
     best_f1, best_params, best_accuracy, best_failures = -1, None, -1, []
 
     print("\n--- Hyperparameter Tuning Results ---")
-    print(f"{'w_sim':<8}{'w_list':<8}{'thresh':<8}{'Precision':<12}{'Recall':<12}{'F1-Score':<12}{'Accuracy':<12}")
-    print("-" * 72)
+    print(f"{'w_sim':<8}{'w_list':<8}{'rej_thr':<8}{'pop_thr':<10}{'Precision':<12}{'Recall':<12}{'F1-Score':<12}{'Accuracy':<12}")
+    print("-" * 82)
 
     for w_sim in weights:
         w_listeners = round(1.0 - w_sim, 2)
-        for threshold in thresholds:
-            precision, recall, f1, accuracy, failures = evaluate_hyperparameters(filtered_df, search_results, w_sim, w_listeners, threshold, selection_function)
-            
-            line = f"{w_sim:<8.2f}{w_listeners:<8.2f}{threshold:<8.2f}{precision:<12.2%}{recall:<12.2%}{f1:<12.2%}{accuracy:<12.2%}"
-            if f1 > best_f1:
-                best_f1 = f1
-                best_accuracy = accuracy
-                best_params = {'w_sim': w_sim, 'w_listeners': w_listeners, 'threshold': threshold}
-                best_failures = failures
-                print(f"{line} *")
-            else:
-                print(line)
+        for rejection_threshold in rejection_thresholds:
+            for popularity_threshold in popularity_thresholds:
+                precision, recall, f1, accuracy, failures = evaluate_hyperparameters(filtered_df, search_results, w_sim, w_listeners, rejection_threshold, popularity_threshold, selection_function)
+                
+                line = f"{w_sim:<8.2f}{w_listeners:<8.2f}{rejection_threshold:<8.2f}{popularity_threshold:<10}{precision:<12.2%}{recall:<12.2%}{f1:<12.2%}{accuracy:<12.2%}"
+                if f1 > best_f1:
+                    best_f1 = f1
+                    best_accuracy = accuracy
+                    best_params = {'w_sim': w_sim, 'w_listeners': w_listeners, 'rejection_threshold': rejection_threshold, 'popularity_threshold': popularity_threshold}
+                    best_failures = failures
+                    print(f"{line} *")
+                else:
+                    print(line)
     
-    print("\n--- Tuning Complete ---")
+    print("--- Tuning Complete ---")
     if best_params:
+        print(f"Input files:")
+        print(f"  - Ground Truth: {args.ground_truth}")
+        print(f"  - Search Results: {args.search_results}")
         print(f"Strategy: '{args.strategy}'")
         print(f"Best F1-Score: {best_f1:.2%} (Accuracy: {best_accuracy:.2%})")
-        print(f"Best Parameters: w_sim={best_params['w_sim']:.2f}, w_listeners={best_params['w_listeners']:.2f}, threshold={best_params['threshold']:.2f}")
+        print(f"Best Parameters: w_sim={best_params['w_sim']:.2f}, w_listeners={best_params['w_listeners']:.2f}, rejection_threshold={best_params['rejection_threshold']:.2f}, popularity_threshold={best_params['popularity_threshold']}")
 
     if best_failures:
         print("\n--- Failures for Best Hyperparameters ---")

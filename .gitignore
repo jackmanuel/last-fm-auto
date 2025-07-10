@@ -48,7 +48,7 @@ evaluation/data/*.csv
 data/*.csv
 
 # Ignore generated output files from tuning.
-evaluation/data/tuning_results.txt
+evaluation/data/*.txt
 
 # --- IDE / Editor Specific ---
 # Ignore settings specific to local development environments like VS Code.

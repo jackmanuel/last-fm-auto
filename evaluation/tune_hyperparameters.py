@@ -19,81 +19,15 @@ import numpy as np
 import argparse
 from thefuzz import fuzz
 
-from last_fm_auto import preprocessing
-from last_fm_auto import pipeline
+from last_fm_auto import preprocessing, pipeline, scoring
 
 # --- Scoring Strategy Functions ---
 
-def _calculate_similarity(query: str, track_name: str, artist_name: str) -> float:
-    """Calculates the fuzzy string matching similarity score."""
-    sim_track_only = fuzz.ratio(query, track_name)
-    sim_artist_track = fuzz.ratio(query, f"{artist_name} {track_name}")
-    sim_track_artist = fuzz.ratio(query, f"{track_name} {artist_name}")
-    return max(sim_track_only, sim_artist_track, sim_track_artist) / 100.0
-
-def _select_best_track(
-    search_query: str,
-    tracks: list,
-    w_sim: float,
-    w_listeners: float,
-    popularity_threshold: int,
-    listener_transform: callable = lambda x: x
-) -> tuple[dict | None, float]:
-    """
-    Selects the best track from a list based on a weighted score of similarity and popularity.
-
-    Args:
-        search_query: The user's search query.
-        tracks: A list of track dictionaries.
-        w_sim: The weight for the similarity score.
-        w_listeners: The weight for the listener score.
-        popularity_threshold: The minimum number of listeners for a track to be considered.
-        listener_transform: A function to transform the listener count before normalization (e.g., np.log1p).
-                            Defaults to an identity function (no transformation).
-
-    Returns:
-        A tuple containing the best track dictionary and its score, or (None, 0.0) if no suitable track is found.
-    """
-    if not tracks:
-        return None, 0.0
-
-    # Filter out tracks below the popularity threshold
-    popular_tracks = [t for t in tracks if int(t.get('listeners', 0)) >= popularity_threshold]
-    if not popular_tracks:
-        return None, 0.0
-
-    # Apply the transformation to the listener counts
-    transformed_listeners = [listener_transform(int(t.get('listeners', 0))) for t in popular_tracks]
-    max_listeners = max(transformed_listeners) if transformed_listeners else 0
-
-    best_track, max_score = None, -1.0
-    query_lower = search_query.lower()
-
-    for i, track in enumerate(popular_tracks):
-        track_name = track.get('name', '').lower()
-        artist_name = track.get('artist', '').lower()
-
-        # Calculate normalized similarity score
-        norm_sim = _calculate_similarity(query_lower, track_name, artist_name)
-
-        # Calculate normalized listener score
-        norm_listeners = (transformed_listeners[i] / max_listeners) if max_listeners > 0 else 0
-        
-        # Calculate the final weighted score
-        score = (w_sim * norm_sim) + (w_listeners * norm_listeners)
-
-        if score > max_score:
-            max_score, best_track = score, track
-            
-    return best_track, max_score
-
-# You can now call the new function like this to get the old behaviors:
-
 def select_best_track_linear(search_query: str, tracks: list, w_sim: float, w_listeners: float, popularity_threshold: int) -> tuple[dict | None, float]:
-    return _select_best_track(search_query, tracks, w_sim, w_listeners, popularity_threshold)
+    return scoring.select_best_track(search_query, tracks, w_sim, w_listeners, popularity_threshold, print_info=False)
 
 def select_best_track_log(search_query: str, tracks: list, w_sim: float, w_listeners: float, popularity_threshold: int) -> tuple[dict | None, float]:
-    return _select_best_track(search_query, tracks, w_sim, w_listeners, popularity_threshold, listener_transform=np.log1p)
+    return scoring.select_best_track(search_query, tracks, w_sim, w_listeners, popularity_threshold, listener_transform=np.log1p, print_info=False)
 
 # --- Main Evaluation Logic ---
 

@@ -7,6 +7,7 @@ from thefuzz import fuzz
 from . import config
 from . import preprocessing
 from . import lastfm_client
+from . import scoring
 
 # Load the local track data once when the module is imported
 SEARCHABLE_TRACKS = preprocessing._load_json_data(config.SEARCHABLE_TRACKS_FILE, "Searchable Tracks")
@@ -26,63 +27,29 @@ def _find_match_in_local_db(query: str) -> dict | None:
 
 def _find_best_match_from_api(search_query: str) -> dict | None:
     """
-    Searches API for a query and returns the best match using a weighted model.
-    It calculates similarity against multiple variations of the track string
-    (e.g., 'Track', 'Artist - Track') and uses the best one.
+    Searches the Last.fm API and selects the best track using the centralized scoring logic.
     """
     print(f"Searching Last.fm with query: \"{search_query}\"")
     tracks = lastfm_client.search_track(search_query)
 
-    tracks = [track for track in tracks if int(track.get('listeners', 0)) > config.POPULARITY_THRESHOLD]
-
     if not tracks:
         return None
 
-    listeners = [int(track.get('listeners', 0)) for track in tracks]
-    max_listeners = max(listeners) if listeners else 0
+    best_track, max_score = scoring.select_best_track(
+        search_query,
+        tracks,
+        weight_similarity=config.WEIGHT_SIMILARITY,
+        weight_popularity=config.WEIGHT_POPULARITY,
+        popularity_threshold=config.POPULARITY_THRESHOLD
+    )
 
-    best_track = None
-    max_score = -1
-    query_lower = search_query.lower()
-
-    for i, track in enumerate(tracks):
-        track_name = track.get('name', '').lower()
-        artist_name = track.get('artist', '').lower()
-
-        # Compare against three variations: track, "artist track", and "track artist"
-        sim_track_only = fuzz.ratio(query_lower, track_name)
-        sim_artist_track = fuzz.ratio(query_lower, f"{artist_name} {track_name}")
-        sim_track_artist = fuzz.ratio(query_lower, f"{track_name} {artist_name}")
-        
-        similarity_score = max(sim_track_only, sim_artist_track, sim_track_artist)
-        norm_sim = similarity_score / 100.0
-        
-        norm_listeners = (listeners[i] / max_listeners) if max_listeners > 0 else 0
-        
-        score = (config.WEIGHT_SIMILARITY * norm_sim) + (config.WEIGHT_POPULARITY * norm_listeners)
-
-        print(f"Track: {track.get('name')}, Artist: {track.get('artist')}, Similarity: {similarity_score}%, Listeners: {listeners[i]}, Score: {score:.3f}")
-
-        if score > max_score:
-            max_score = score
-            best_track = track
-    
-    if max_score >= config.REJECTION_THRESHOLD and best_track:
-        track_name = best_track.get('name', '').lower()
-        artist_name = best_track.get('artist', '').lower()
-        final_sim = max(
-            fuzz.ratio(query_lower, track_name),
-            fuzz.ratio(query_lower, f"{artist_name} {track_name}"),
-            fuzz.ratio(query_lower, f"{track_name} {artist_name}")
-        )
-        print(f"Found best match: '{best_track['name']}' with a score of {max_score:.3f} and similarity {final_sim}%")
+    if best_track and max_score >= config.REJECTION_THRESHOLD:
+        print(f"Found best match: '{best_track['name']}' with a score of {max_score:.3f}")
         return best_track
     elif best_track:
-        # The best score was not good enough, so we reject it.
         print(f"Found best match '{best_track['name']}', but score {max_score:.3f} is below threshold {config.REJECTION_THRESHOLD}. Rejecting.")
         return None
     else:
-        # No track was even considered.
         return None
 
 def find_best_track(original_query: str, resolved_title: str) -> dict | None:

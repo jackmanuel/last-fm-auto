@@ -23,8 +23,9 @@ if not DB_FILE:
 DB_TIMEOUT = 20.0
 
 # --- Data File Paths ---
-ABBREVIATIONS_FILE = PROJECT_ROOT / "data" / "abbreviations.json"
-SEARCHABLE_TRACKS_FILE = PROJECT_ROOT / "data" / "searchable_tracks.json"
+DATA_DIR = PROJECT_ROOT / "data"
+ABBREVIATIONS_FILE = DATA_DIR / "abbreviations.json"
+LOCAL_TRACKS_FILE = DATA_DIR / "local_tracks.json"
 
 # --- API Configuration ---
 LAST_FM_API_KEY = os.getenv('LAST_FM_API_KEY')

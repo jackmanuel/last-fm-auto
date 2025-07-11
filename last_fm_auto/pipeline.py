@@ -10,7 +10,7 @@ from . import lastfm_client
 from . import scoring
 
 # Load the local track data once when the module is imported
-SEARCHABLE_TRACKS = preprocessing._load_json_data(config.SEARCHABLE_TRACKS_FILE, "Searchable Tracks")
+SEARCHABLE_TRACKS = preprocessing._load_json_data(config.LOCAL_TRACKS_FILE, "Searchable Tracks")
 
 def _find_match_in_local_db(query: str) -> dict | None:
     """Searches for a matching track in the local searchable_tracks.json."""

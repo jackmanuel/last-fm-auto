@@ -34,7 +34,7 @@ def _print_track_info(i, track, similarity_score, score):
             f"{score:<{SCORE_WIDTH}.3f}")
 
 
-def _calculate_similarity(query: str, track_name: str, artist_name: str) -> float:
+def calculate_similarity(query: str, track_name: str, artist_name: str) -> float:
     """Calculates the fuzzy string matching similarity score."""
     query_lower = query.lower()
     track_name_lower = track_name.lower()
@@ -85,7 +85,7 @@ def select_best_track(
         track_name = track.get('name', '')
         artist_name = track.get('artist', '')
 
-        similarity_score = _calculate_similarity(search_query, track_name, artist_name)
+        similarity_score = calculate_similarity(search_query, track_name, artist_name)
         norm_sim = similarity_score / 100.0
         
         norm_listeners = (transformed_listeners[i] / max_listeners) if max_listeners > 0 else 0

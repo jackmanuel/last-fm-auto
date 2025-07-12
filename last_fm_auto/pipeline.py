@@ -17,7 +17,7 @@ def _find_match_in_local_db(query: str) -> dict | None:
     for track_info in SEARCHABLE_TRACKS:
         local_track_title = track_info.get("track")
         local_track_artist = track_info.get("artist")
-        if not local_track_title:
+        if not local_track_title or not local_track_artist:
             continue
 
         similarity = scoring.calculate_similarity(query, local_track_title, local_track_artist)

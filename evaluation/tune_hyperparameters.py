@@ -17,9 +17,8 @@ import json
 import sys
 import numpy as np
 import argparse
-from thefuzz import fuzz
 
-from last_fm_auto import preprocessing, pipeline, scoring
+from last_fm_auto import preprocessing, pipeline, scoring, config
 
 # --- Scoring Strategy Functions ---
 
@@ -97,10 +96,22 @@ def main():
     parser.add_argument("--ground-truth", required=True, help="Path to the ground truth CSV file.")
     parser.add_argument("--search-results", required=True, help="Path to the cached search results JSON.")
     parser.add_argument("--strategy", choices=STRATEGY_MAP.keys(), default='linear', help="The scoring strategy to use.")
+    parser.add_argument("--searchable-tracks", default=config.LOCAL_TRACKS_FILE, help="Path to the searchable_tracks.json file (defaults to config).")
     args = parser.parse_args()
 
     selection_function = STRATEGY_MAP[args.strategy]
     df, search_results = load_data(args.ground_truth, args.search_results)
+
+    # Load searchable tracks for local matching
+    try:
+        with open(args.searchable_tracks, 'r', encoding='utf-8') as f:
+            searchable_tracks = json.load(f)
+    except FileNotFoundError:
+        print(f"Error: searchable_tracks.json not found at {args.searchable_tracks}")
+        sys.exit(1)
+
+    # Instantiate the pipeline once
+    track_pipeline = pipeline.TrackPipeline.from_default_config(searchable_tracks)
     
     # Use resolved_title for YouTube links, otherwise use the original query
     df['search_term'] = df.apply(
@@ -108,13 +119,13 @@ def main():
         axis=1
     )
     df['cleaned_query'] = df['search_term'].apply(lambda q: preprocessing.clean_youtube_title(preprocessing.expand_abbreviations(str(q))))
-    df['has_local_match'] = df['cleaned_query'].apply(lambda q: pipeline._find_match_in_local_db(q) is not None)
+    df['has_local_match'] = df['cleaned_query'].apply(lambda q: track_pipeline.find_match_in_local_db(q) is not None)
     filtered_df = df[~df['has_local_match']].copy()
     print(f"Tuning with {len(filtered_df)} records (after skipping {len(df) - len(filtered_df)} local matches).")
 
     # --- Hyperparameter Grid ---
     weights = np.arange(0.0, 1.05, 0.05)
-    rejection_thresholds = np.arange(0.0, 0.85, 0.05)
+    rejection_thresholds = np.arange(0.0, 0.05, 0.05) # From my data, 0 is best, so this is just a formality
     popularity_thresholds = [0, 1, 2, 3, 4, 5, 10, 20, 30, 40, 50, 75, 100, 200, 300, 400, 500, 1000]
     
     best_f1, best_params, best_accuracy, best_failures = -1, None, -1, []

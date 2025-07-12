@@ -18,20 +18,15 @@ def _print_track_info(i, track, similarity_score, score):
     LISTENERS_WIDTH = 10
     SCORE_WIDTH = 8
 
-    # Truncate track and artist names if they are too long
-    display_track = (track_name[:TRACK_WIDTH-5] + '...') if len(track_name) > TRACK_WIDTH else track_name
-    display_artist = (artist_name[:ARTIST_WIDTH-5] + '...') if len(artist_name) > ARTIST_WIDTH else artist_name
-
-
     if i == 0:
         print(f"{'Track':<{TRACK_WIDTH}} {'Artist':<{ARTIST_WIDTH}} {'Similarity':<{SIM_WIDTH}} {'Listeners':<{LISTENERS_WIDTH}} {'Score':<{SCORE_WIDTH}}")
         print("-" * (TRACK_WIDTH + ARTIST_WIDTH + SIM_WIDTH + LISTENERS_WIDTH + SCORE_WIDTH + 4))
 
-    print(f"{display_track:<{TRACK_WIDTH}} "
-            f"{display_artist:<{ARTIST_WIDTH}} "
-            f"{similarity_score:<{SIM_WIDTH}.0f} "
-            f"{listeners:<{LISTENERS_WIDTH}} "
-            f"{score:<{SCORE_WIDTH}.3f}")
+    print(f"{track_name:<{TRACK_WIDTH}.{TRACK_WIDTH}} "
+          f"{artist_name:<{ARTIST_WIDTH}.{ARTIST_WIDTH}} "
+          f"{similarity_score:<{SIM_WIDTH}.0f} "
+          f"{listeners:<{LISTENERS_WIDTH}} "
+          f"{score:<{SCORE_WIDTH}.3f}")
 
 
 def _calculate_similarity(query: str, track_name: str, artist_name: str) -> float:

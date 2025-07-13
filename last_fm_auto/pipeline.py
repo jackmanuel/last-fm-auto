@@ -20,13 +20,15 @@ class TrackPipeline:
             'LOCAL_SIMILARITY_THRESHOLD': config.LOCAL_SIMILARITY_THRESHOLD,
             'WEIGHT_SIMILARITY': config.WEIGHT_SIMILARITY,
             'WEIGHT_POPULARITY': config.WEIGHT_POPULARITY,
-            'POPULARITY_THRESHOLD': config.POPULARITY_THRESHOLD,
-            'REJECTION_THRESHOLD': config.REJECTION_THRESHOLD
+            'POPULARITY_THRESHOLD': config.POPULARITY_THRESHOLD
         }
         return cls(config=pipeline_config, searchable_tracks=searchable_tracks)
 
     def find_match_in_local_db(self, query: str) -> Optional[Dict]:
-        """Searches for a matching track in the local searchable_tracks.json."""
+        """Searches for the best matching track in the local searchable_tracks.json."""
+        best_match = None
+        max_similarity = 0
+        print(f"Searching local DB for query: \"{query}\"")
         for track_info in self.searchable_tracks:
             local_track_title = track_info.get("track")
             local_track_artist = track_info.get("artist")
@@ -34,9 +36,19 @@ class TrackPipeline:
                 continue
 
             similarity = scoring.calculate_similarity(query, local_track_title, local_track_artist)
-            if similarity >= config.LOCAL_SIMILARITY_THRESHOLD:
-                print(f"Found suitable track in local DB for '{query}': '{local_track_title}', '{local_track_artist}' (Similarity: {similarity}%)")
-                return {"name": local_track_title, "artist": track_info.get("artist")}
+            if similarity > max_similarity:
+                max_similarity = similarity
+                best_match = {"name": local_track_title, "artist": local_track_artist}
+
+        if best_match and max_similarity >= config.LOCAL_SIMILARITY_THRESHOLD:
+            print(
+                f"Found suitable track in local DB for '{query}': "
+                f"'{best_match['name']}', '{best_match['artist']}' "
+                f"(Similarity: {max_similarity}%)"
+            )
+            return best_match
+        
+        print(f"No suitable local match found for '{query}' locally.")
         return None
 
     def _find_best_match_from_api(self, search_term: str) -> Optional[Dict]:
@@ -56,12 +68,9 @@ class TrackPipeline:
                 popularity_threshold=self.config['POPULARITY_THRESHOLD']
             )
 
-            if best_track and max_score >= self.config['REJECTION_THRESHOLD']:
+            if best_track:
                 print(f"Found best match: '{best_track['name']}' with a score of {max_score:.3f}")
                 return best_track
-            elif best_track:
-                print(f"Rejected '{best_track['name']}' (score {max_score:.3f} < {self.config['REJECTION_THRESHOLD']})")
-                return None
                 
             return None
         except Exception as e:

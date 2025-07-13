@@ -42,7 +42,7 @@ def load_data(ground_truth_csv: str, search_results_json: str) -> tuple[pd.DataF
     
     return df, search_results
 
-def evaluate_hyperparameters(df: pd.DataFrame, search_results: dict, w_sim: float, w_listeners: float, rejection_threshold: float, popularity_threshold: int, selection_function: callable) -> tuple[float, float, float, float, list]:
+def evaluate_hyperparameters(df: pd.DataFrame, search_results: dict, w_sim: float, w_listeners: float, popularity_threshold: int, selection_function: callable) -> tuple[float, float, float, float, list]:
     """
     Evaluates a set of hyperparameters.
     Returns: (precision, recall, f1_score, accuracy, list_of_failures)
@@ -59,14 +59,13 @@ def evaluate_hyperparameters(df: pd.DataFrame, search_results: dict, w_sim: floa
         results_data = search_results.get(str(row['id']))
         tracks = results_data.get('results', {}).get('trackmatches', {}).get('track', []) if results_data else []
         
-        best_track, score = selection_function(row['cleaned_query'], tracks, w_sim, w_listeners, popularity_threshold)
-        predicted_track = best_track if score >= rejection_threshold else None
+        best_track, _ = selection_function(row['cleaned_query'], tracks, w_sim, w_listeners, popularity_threshold)
 
-        pred_name = predicted_track.get('name', '').lower().strip() if predicted_track else None
-        pred_artist = predicted_track.get('artist', '').lower().strip() if predicted_track else None
-        pred_track_str = f"{pred_name} by {pred_artist}" if predicted_track else "None"
+        pred_name = best_track.get('name', '').lower().strip() if best_track else None
+        pred_artist = best_track.get('artist', '').lower().strip() if best_track else None
+        pred_track_str = f"{pred_name} by {pred_artist}" if best_track else "None"
 
-        if predicted_track:
+        if best_track:
             if is_gt_valid:
                 if pred_name == gt_track and pred_artist == gt_artist:
                     tp += 1
@@ -125,7 +124,6 @@ def main():
 
     # --- Hyperparameter Grid ---
     weights = np.arange(0.0, 1.05, 0.05)
-    rejection_thresholds = np.arange(0.0, 0.05, 0.05) # From my data, 0 is best, so this is just a formality
     popularity_thresholds = [0, 1, 2, 3, 4, 5, 10, 20, 30, 40, 50, 75, 100, 200, 300, 400, 500, 1000]
     
     best_f1, best_params, best_accuracy, best_failures = -1, None, -1, []
@@ -136,19 +134,18 @@ def main():
 
     for w_sim in weights:
         w_listeners = round(1.0 - w_sim, 2)
-        for rejection_threshold in rejection_thresholds:
-            for popularity_threshold in popularity_thresholds:
-                precision, recall, f1, accuracy, failures = evaluate_hyperparameters(filtered_df, search_results, w_sim, w_listeners, rejection_threshold, popularity_threshold, selection_function)
-                
-                line = f"{w_sim:<8.2f}{w_listeners:<8.2f}{rejection_threshold:<8.2f}{popularity_threshold:<10}{precision:<12.2%}{recall:<12.2%}{f1:<12.2%}{accuracy:<12.2%}"
-                if f1 > best_f1:
-                    best_f1 = f1
-                    best_accuracy = accuracy
-                    best_params = {'w_sim': w_sim, 'w_listeners': w_listeners, 'rejection_threshold': rejection_threshold, 'popularity_threshold': popularity_threshold}
-                    best_failures = failures
-                    print(f"{line} *")
-                else:
-                    print(line)
+        for popularity_threshold in popularity_thresholds:
+            precision, recall, f1, accuracy, failures = evaluate_hyperparameters(filtered_df, search_results, w_sim, w_listeners, popularity_threshold, selection_function)
+            
+            line = f"{w_sim:<8.2f}{w_listeners:<8.2f}{popularity_threshold:<10}{precision:<12.2%}{recall:<12.2%}{f1:<12.2%}{accuracy:<12.2%}"
+            if f1 > best_f1:
+                best_f1 = f1
+                best_accuracy = accuracy
+                best_params = {'w_sim': w_sim, 'w_listeners': w_listeners, 'popularity_threshold': popularity_threshold}
+                best_failures = failures
+                print(f"{line} *")
+            else:
+                print(line)
     
     print("--- Tuning Complete ---")
     if best_params:
@@ -157,7 +154,7 @@ def main():
         print(f"  - Search Results: {args.search_results}")
         print(f"Strategy: '{args.strategy}'")
         print(f"Best F1-Score: {best_f1:.2%} (Accuracy: {best_accuracy:.2%})")
-        print(f"Best Parameters: w_sim={best_params['w_sim']:.2f}, w_listeners={best_params['w_listeners']:.2f}, rejection_threshold={best_params['rejection_threshold']:.2f}, popularity_threshold={best_params['popularity_threshold']}")
+        print(f"Best Parameters: w_sim={best_params['w_sim']:.2f}, w_listeners={best_params['w_listeners']:.2f}, popularity_threshold={best_params['popularity_threshold']}")
 
     if best_failures:
         print("\n--- Failures for Best Hyperparameters ---")

@@ -43,7 +43,4 @@ def clean_youtube_title(title: str) -> str:
     pattern_string = r'\s*[\[(](' + '|'.join(junk_patterns) + r')[\])]\s*'
     cleaned_title = re.sub(pattern_string, '', title, flags=re.IGNORECASE)
     
-    # Remove anything after a pipe symbol (|)
-    cleaned_title = cleaned_title.split('|')[0]
-    
     return cleaned_title.strip()

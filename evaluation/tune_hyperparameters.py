@@ -17,7 +17,6 @@ import json
 import sys
 import numpy as np
 import argparse
-from thefuzz import fuzz
 
 from last_fm_auto import preprocessing, pipeline, scoring
 

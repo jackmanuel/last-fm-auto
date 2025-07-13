@@ -34,17 +34,25 @@ def _print_track_info(i, track, similarity_score, score):
             f"{score:<{SCORE_WIDTH}.3f}")
 
 
-def calculate_similarity(query: str, track_name: str, artist_name: str) -> float:
-    """Calculates the fuzzy string matching similarity score."""
-    query_lower = query.lower()
-    track_name_lower = track_name.lower()
-    artist_name_lower = artist_name.lower()
+def calculate_similarity(
+    query: str, 
+    track_name: str, 
+    artist_name: str
+) -> int:
+    """
+    Calculates a robust similarity score using a simple, two-pronged approach.
+    """
+    if not query or not track_name:
+        return 0
 
-    sim_track_only = fuzz.ratio(query_lower, track_name_lower)
-    sim_artist_track = fuzz.ratio(query_lower, f"{artist_name_lower} {track_name_lower}")
-    sim_track_artist = fuzz.ratio(query_lower, f"{track_name_lower} {artist_name_lower}")
+    # Score for a query that might just be the title
+    title_match_score = fuzz.token_sort_ratio(query, track_name)
     
-    return max(sim_track_only, sim_artist_track, sim_track_artist)
+    # Score for a query that contains both artist and track name
+    combined_string = f"{artist_name} {track_name}"
+    combined_match_score = fuzz.token_sort_ratio(query, combined_string)
+ 
+    return max(title_match_score, combined_match_score)
 
 def select_best_track(
     search_query: str,

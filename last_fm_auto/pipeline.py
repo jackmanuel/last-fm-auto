@@ -22,7 +22,7 @@ def _find_match_in_local_db(query: str) -> dict | None:
 
         similarity = scoring.calculate_similarity(query, local_track_title, local_track_artist)
         if similarity >= config.LOCAL_SIMILARITY_THRESHOLD:
-            print(f"Found suitable track in local DB: '{local_track_title}' (Similarity: {similarity}%)")
+            print(f"Found suitable track in local DB for '{query}': '{local_track_title}', '{local_track_artist}' (Similarity: {similarity}%)")
             return {"name": local_track_title, "artist": track_info.get("artist")}
     return None
 

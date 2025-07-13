@@ -9,14 +9,9 @@ understanding the model's behavior.
 """
 import argparse
 import sys
-
-# Add a check to ensure the package is installed and importable
-try:
-    from last_fm_auto import pipeline
-except ModuleNotFoundError:
-    print("Error: The 'last_fm_auto' package was not found.")
-    print("Please ensure you have run 'pip install -e .' from the project root.")
-    sys.exit(1)
+import json
+from last_fm_auto import config
+from last_fm_auto.pipeline import TrackPipeline
 
 def main():
     """
@@ -36,9 +31,19 @@ def main():
     print(f"Input: \"{args.query_string}\"")
     print("-" * 26)
 
-    # We call the main pipeline function directly.
+    # Load searchable tracks from the local JSON file
+    try:
+        with open(config.LOCAL_TRACKS_FILE, 'r', encoding='utf-8') as f:
+            searchable_tracks = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        print(f"Error loading searchable tracks: {e}")
+        sys.exit(1)
+
+    # Instantiate the pipeline using the default configuration
+    pipeline = TrackPipeline.from_default_config(searchable_tracks=searchable_tracks)
+
     # For a manual query, the original_query and resolved_title are the same.
-    best_match = pipeline.find_best_track(
+    best_match = pipeline.execute(
         original_query=args.query_string,
         resolved_title=args.query_string
     )

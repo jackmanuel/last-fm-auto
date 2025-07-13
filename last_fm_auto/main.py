@@ -11,6 +11,10 @@ from datetime import datetime, timezone
 from . import config
 from . import pipeline
 from . import lastfm_client
+from . import preprocessing
+
+# Load the searchable tracks once when the module is initialized
+SEARCHABLE_TRACKS = preprocessing._load_json_data(config.LOCAL_TRACKS_FILE, "Searchable Tracks")
 
 # --- Database Interaction ---
 
@@ -45,18 +49,19 @@ def update_song_status(request_id: str, status: str):
 
 # --- Application Flow ---
 
-def process_new_songs():
+def process_new_songs(pipeline_inst: pipeline.TrackPipeline):
     """Fetches, processes, and scrobbles new songs."""
     new_songs = get_new_songs(config.GUILD_ID)
     if not new_songs:
-        return 0 # Return 0 songs processed
+        return 0
 
     print(f"\nFound {len(new_songs)} new song(s) to process.")
+
     for song in new_songs:
         print(f"\n--- Processing Song ID: {song['request_id']} ---")
         print(f"Query: {song['query']}, Resolved Title: {song['resolved_title']}")
 
-        best_track = pipeline.find_best_track(song['query'], song['resolved_title'])
+        best_track = pipeline_inst.execute(song['query'], song['resolved_title'])
 
         if best_track:
             track_name = best_track.get('name')
@@ -80,16 +85,21 @@ def main():
     args = parser.parse_args()
 
     if args.authenticate:
-        # (Your authentication flow logic from original main() goes here)
         print("Authentication flow not fully implemented in this refactor example.")
         sys.exit(0)
     
     if not config.LAST_FM_SESSION_KEY and not args.authenticate:
         print("Error: LAST_FM_SESSION_KEY not found in .env. Please run with --authenticate first.")
         sys.exit(1)
+
+    # Create the pipeline using the default configuration
+    pipeline_inst = pipeline.TrackPipeline.from_default_config(
+        searchable_tracks=SEARCHABLE_TRACKS
+    )
         
     if args.run_once:
-        process_new_songs()
+        if not process_new_songs(pipeline_inst):
+            print("No new songs to process.")        
         sys.exit(0)
 
     print("Scrobbler starting in continuous mode... Press Ctrl+C to stop.")
@@ -98,7 +108,7 @@ def main():
 
     try:
         while True:
-            process_new_songs()
+            process_new_songs(pipeline_inst)
             
             for i in range(wait_seconds * 4):
                 char = spinner_chars[i % len(spinner_chars)]

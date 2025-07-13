@@ -33,10 +33,10 @@ class TrackPipeline:
             if not local_track_title or not local_track_artist:
                 continue
 
-        similarity = scoring.calculate_similarity(query, local_track_title, local_track_artist)
-        if similarity >= config.LOCAL_SIMILARITY_THRESHOLD:
-            print(f"Found suitable track in local DB for '{query}': '{local_track_title}', '{local_track_artist}' (Similarity: {similarity}%)")
-            return {"name": local_track_title, "artist": track_info.get("artist")}
+            similarity = scoring.calculate_similarity(query, local_track_title, local_track_artist)
+            if similarity >= config.LOCAL_SIMILARITY_THRESHOLD:
+                print(f"Found suitable track in local DB for '{query}': '{local_track_title}', '{local_track_artist}' (Similarity: {similarity}%)")
+                return {"name": local_track_title, "artist": track_info.get("artist")}
         return None
 
     def _find_best_match_from_api(self, search_term: str) -> Optional[Dict]:

@@ -24,11 +24,12 @@ class TrackPipeline:
         }
         return cls(config=pipeline_config, searchable_tracks=searchable_tracks)
 
-    def find_match_in_local_db(self, query: str) -> Optional[Dict]:
+    def find_match_in_local_db(self, query: str, verbose: bool = True) -> Optional[Dict]:
         """Searches for the best matching track in the local searchable_tracks.json."""
         best_match = None
         max_similarity = 0
-        print(f"Searching local DB for query: \"{query}\"")
+        if verbose:
+            print(f"Searching local DB for query: \"{query}\"")
         for track_info in self.searchable_tracks:
             local_track_title = track_info.get("track")
             local_track_artist = track_info.get("artist")
@@ -48,7 +49,8 @@ class TrackPipeline:
             )
             return best_match
         
-        print(f"No suitable local match found for '{query}' locally.")
+        if verbose:
+            print(f"No suitable local match found for '{query}' locally.")
         return None
 
     def _find_best_match_from_api(self, search_term: str) -> Optional[Dict]:
@@ -77,7 +79,7 @@ class TrackPipeline:
             print(f"API search failed for '{search_term}': {str(e)}")
             return None
 
-    def execute(self, original_query: str, resolved_title: str) -> Optional[Dict]:
+    def execute(self, original_query: str, resolved_title: str, verbose: bool = True) -> Optional[Dict]:
         """
         Main pipeline entry point. Cleans inputs and tries multiple strategies
         to find the best possible track match.
@@ -89,7 +91,7 @@ class TrackPipeline:
         cleaned_resolved_title = preprocessing.clean_youtube_title(resolved_title)
 
         # Step 2: Check local database first
-        local_match = self.find_match_in_local_db(cleaned_query)
+        local_match = self.find_match_in_local_db(cleaned_query, verbose)
         if local_match:
             return local_match
 

@@ -118,7 +118,7 @@ def main():
     is_youtube_link = query_str.str.contains('youtube.com|youtu.be', na=False)
     df['search_term'] = np.where(is_youtube_link, resolved_title_str, query_str)
     df['cleaned_query'] = df['search_term'].apply(lambda q: preprocessing.clean_youtube_title(preprocessing.expand_abbreviations(str(q))))
-    df['has_local_match'] = df['cleaned_query'].apply(lambda q: track_pipeline.find_match_in_local_db(q) is not None)
+    df['has_local_match'] = df['cleaned_query'].apply(lambda q: track_pipeline.find_match_in_local_db(q, verbose=False) is not None)
     filtered_df = df[~df['has_local_match']].copy()
     print(f"Tuning with {len(filtered_df)} records (after skipping {len(df) - len(filtered_df)} local matches).")
 

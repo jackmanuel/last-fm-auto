@@ -26,13 +26,15 @@ def sign_request(params, api_secret):
     signature = "".join([f"{k}{v}" for k, v in sorted_params]) + api_secret
     return hashlib.md5(signature.encode('utf-8')).hexdigest()
 
-def get_auth_token(api_key):
+def get_auth_token(api_key, api_secret):
     """Gets a request token from the Last.fm API."""
     params = {
         'method': 'auth.getToken',
-        'api_key': api_key,
-        'format': 'json'
+        'api_key': api_key
     }
+    params['api_sig'] = sign_request(params, api_secret)
+    params['format'] = 'json'
+    
     try:
         response = requests.get(config.LAST_FM_API_URL, params=params)
         response.raise_for_status()
@@ -47,6 +49,8 @@ def get_auth_token(api_key):
 
 def get_session_key(api_key, api_secret, token):
     """Gets a session key from the Last.fm API."""
+def get_session_key(api_key, api_secret, token):
+    """Gets a session key from the Last.fm API."""
     params = {
         'method': 'auth.getSession',
         'api_key': api_key,
@@ -58,14 +62,76 @@ def get_session_key(api_key, api_secret, token):
         response = requests.get(config.LAST_FM_API_URL, params=params)
         response.raise_for_status()
         data = response.json()
-        return data.get('session', {}).get('key')
+        session = data.get('session')
+        if not session or 'key' not in session:
+            error_message = data.get('message', 'Unknown error')
+            print(f"Error getting session key: {error_message}")
+            return None
+        return session.get('key')
     except requests.RequestException as e:
         print(f"API request error while getting session key: {e}")
         return None
     except json.JSONDecodeError:
         print("Failed to parse JSON from getSession API response.")
         return None
+
+def _save_session_key_to_env(session_key):
+    """Saves the session key to the .env file."""
+    env_path = config.ENV_PATH
+    lines = []
+    key_found = False
+    if env_path.exists():
+        with open(env_path, 'r') as f:
+            lines = f.readlines()
     
+    with open(env_path, 'w') as f:
+        for line in lines:
+            if line.strip().startswith('LAST_FM_SESSION_KEY='):
+                f.write(f'LAST_FM_SESSION_KEY="{session_key}"\n')
+                key_found = True
+            else:
+                f.write(line)
+        if not key_found:
+            f.write(f'\nLAST_FM_SESSION_KEY="{session_key}"\n')
+    print("Session key successfully saved to .env file.")
+
+
+def authenticate():
+    """Guides the user through the Last.fm authentication process."""
+    api_key = config.LAST_FM_API_KEY
+    api_secret = config.LAST_FM_API_SECRET
+
+    if not api_key or not api_secret:
+        print("Error: LAST_FM_API_KEY or LAST_FM_API_SECRET not found in .env file.")
+        print("Please create a .env file in the project root with your credentials.")
+        sys.exit(1)
+
+    # 1. Get an auth token
+    print("Requesting authentication token from Last.fm...")
+    token = get_auth_token(api_key, api_secret)
+    if not token:
+        print("Could not get an authentication token. Please check your API key and secret.")
+        sys.exit(1)
+
+    # 2. Ask user to authorize
+    auth_url = f"http://www.last.fm/api/auth/?api_key={api_key}&token={token}"
+    print("\n--- User Authorization Required ---")
+    print("Please open the following URL in your web browser to grant permission:")
+    print(auth_url)
+    input("\nPress Enter after you have authorized the application...")
+
+    # 3. Get a session key
+    print("\nFetching session key...")
+    session_key = get_session_key(api_key, api_secret, token)
+
+    if session_key:
+        # 4. Save the session key
+        _save_session_key_to_env(session_key)
+        print("\nAuthentication successful! You can now run the scrobbler.")
+    else:
+        print("\nAuthentication failed. Could not retrieve a session key.")
+        print("Please try the process again.")
+        sys.exit(1)
 
 # --- Search and Scrobbling Functions ---
 

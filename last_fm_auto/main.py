@@ -85,7 +85,7 @@ def main():
     args = parser.parse_args()
 
     if args.authenticate:
-        print("Authentication flow not fully implemented in this refactor example.")
+        lastfm_client.authenticate()
         sys.exit(0)
     
     if not config.LAST_FM_SESSION_KEY and not args.authenticate:

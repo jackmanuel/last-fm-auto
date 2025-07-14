@@ -113,10 +113,10 @@ def main():
     track_pipeline = pipeline.TrackPipeline.from_default_config(searchable_tracks)
     
     # Use resolved_title for YouTube links, otherwise use the original query
-    df['search_term'] = df.apply(
-        lambda row: str(row['resolved_title']) if str(row['query']).startswith('http') else str(row['query']),
-        axis=1
-    )
+    query_str = df['query'].astype(str)
+    resolved_title_str = df['resolved_title'].astype(str)
+    is_youtube_link = query_str.str.contains('youtube.com|youtu.be', na=False)
+    df['search_term'] = np.where(is_youtube_link, resolved_title_str, query_str)
     df['cleaned_query'] = df['search_term'].apply(lambda q: preprocessing.clean_youtube_title(preprocessing.expand_abbreviations(str(q))))
     df['has_local_match'] = df['cleaned_query'].apply(lambda q: track_pipeline.find_match_in_local_db(q) is not None)
     filtered_df = df[~df['has_local_match']].copy()

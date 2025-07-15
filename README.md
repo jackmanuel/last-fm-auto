@@ -1,6 +1,6 @@
 # Last.fm Auto-Scrobbler
 
-This project provides a sophisticated pipeline for automatically scrobbling tracks to Last.fm. It is designed to take raw, often messy, song titles (e.g., from a Discord bot or a YouTube video) and intelligently find the correct track on Last.fm using a multi-step, configurable pipeline.
+This project provides a sophisticated pipeline for automatically scrobbling tracks to Last.fm, designed to work in tandem with the [python-music-bot](https://github.com/jackmanuel/python-music-bot). It takes raw, often messy, song titles (e.g., from a search query or a YouTube title) and intelligently finds the correct track on Last.fm using a multi-step, configurable pipeline.
 
 ## Key Features
 
@@ -39,15 +39,7 @@ This project provides a sophisticated pipeline for automatically scrobbling trac
     ```
 3.  **Configure Environment and Database**:
     
-    First, create a `.env` file in the root directory by copying the example:
-    ```bash
-    # For Windows
-    copy .env.example .env
-
-    # For macOS/Linux
-    cp .env.example .env
-    ```
-    Next, edit the new `.env` file with your credentials and path to your database.
+    First, create a `.env` file in the root directory. Edit the `.env` file with your credentials and path to your database.
     ```
     LAST_FM_API_KEY="your_api_key"
     LAST_FM_API_SECRET="your_api_secret"
@@ -56,6 +48,26 @@ This project provides a sophisticated pipeline for automatically scrobbling trac
     GUILD_ID="your_discord_guild_id"
     ```
     
+    **Setting Up Last.fm Session Key**
+
+    To scrobble tracks to Last.fm, you need to authenticate your application. This is a one-time setup process that uses OAuth to securely connect with Last.fm.
+
+    1.  **Get Last.fm API Credentials**:
+        -   Go to the [Last.fm API page](https://www.last.fm/api/account/create) to create an API account.
+        -   Once you have your `API_KEY` and `API_SECRET`, add them to the `.env` file.
+
+    2.  **Generate a Session Key**:
+        Run the following command from the project root:
+        ```bash
+        python -m last_fm_auto.main --authenticate
+        ```
+        This script will:
+        -   Provide a URL for you to open in your browser.
+        -   Ask you to authorize the application on the Last.fm website.
+        -   Once authorized, it will automatically fetch the session key and save it to your `.env` file.
+
+        You only need to do this once. The scrobbler will use the saved session key for all future operations.
+
     **Database Requirements**
     
     The application requires `DATABASE_PATH` to point to a SQLite database with a specific structure. The script reads from a table of pending tracks to scrobble.
@@ -66,10 +78,14 @@ This project provides a sophisticated pipeline for automatically scrobbling trac
     | :--- | :--- | :--- |
     | `request_id` | INTEGER | A unique identifier for the row. |
     | `query` | TEXT | The raw song title to be searched for (can be a YouTube Link). |
-    | `resolved_title` | Text | The resolved title of the YouTube video returned. |
+    | `resolved_title` | TEXT | The resolved title of the YouTube video returned. |
     | `guild_id` | TEXT | The guild id of the server that should be scrobbled. |
     | `timestamp` | TEXT | The timestamp that the song will be scrobbled at (eg. 2024-11-01T17:02:49.765055) Must be UTC.
     | `status` | TEXT | The processing status. This is either `new`, `scrobbled`, or `failed`.|
+
+    **Integration Flexibility**
+
+    While this project was developed to work with the [python-music-bot](https://github.com/jackmanuel/python-music-bot), it is designed to be data-source agnostic. Any application can use this scrobbler as long as it can populate a SQLite database with a `play_history` table that matches the schema described above.
 
 ## Usage
 

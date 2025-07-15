@@ -90,18 +90,19 @@ class TrackPipeline:
 
         cleaned_resolved_title = preprocessing.clean_youtube_title(resolved_title)
 
-        # Step 2: Check local database first
-        local_match = self.find_match_in_local_db(cleaned_query, verbose)
-        if local_match:
-            return local_match
-
-        # Step 3: Determine API search terms
+        # Step 2: Determine API search terms
         is_youtube_url = 'youtube.com' in original_query or 'youtu.be' in original_query
         search_terms = [cleaned_resolved_title] if is_youtube_url else [cleaned_query]
         
         # Add resolved_title as a fallback if different
         if not is_youtube_url and cleaned_resolved_title.lower() != cleaned_query.lower():
             search_terms.append(cleaned_resolved_title)
+
+        # Step 3: Check local database
+        for term in search_terms:
+            local_match = self.find_match_in_local_db(term, verbose)
+            if local_match:
+                return local_match
 
         # Step 4: Execute search against API
         for term in search_terms:

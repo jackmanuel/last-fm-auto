@@ -49,8 +49,6 @@ def get_auth_token(api_key, api_secret):
 
 def get_session_key(api_key, api_secret, token):
     """Gets a session key from the Last.fm API."""
-def get_session_key(api_key, api_secret, token):
-    """Gets a session key from the Last.fm API."""
     params = {
         'method': 'auth.getSession',
         'api_key': api_key,
@@ -187,4 +185,39 @@ def scrobble_track(track: str, artist: str, timestamp: int) -> dict | None:
         print(f"API request error while scrobbling: {e}")
     except json.JSONDecodeError:
         print("Failed to parse JSON from scrobble API response.")
+    return None
+
+
+def update_now_playing(artist: str, track: str) -> dict | None:
+    """Updates the 'Now Playing' status on Last.fm."""
+    if not config.LAST_FM_SESSION_KEY:
+        print("Error: Cannot update 'Now Playing' without a session key.")
+        return None
+
+    params = {
+        'method': 'track.updateNowPlaying',
+        'artist': artist,
+        'track': track,
+        'api_key': config.LAST_FM_API_KEY,
+        'sk': config.LAST_FM_SESSION_KEY
+    }
+
+    params['api_sig'] = sign_request(params, config.LAST_FM_API_SECRET)
+    params['format'] = 'json'
+
+    try:
+        response = requests.post(config.LAST_FM_API_URL, data=params)
+        response.raise_for_status()
+        response_data = response.json()
+
+        if 'error' in response_data:
+            print(f"Update 'Now Playing' failed: {response_data['message']} (Code: {response_data['error']})")
+            return None
+
+        print(f"Successfully updated 'Now Playing' for '{track}' by {artist}.")
+        return response_data
+    except requests.RequestException as e:
+        print(f"API request error while updating 'Now Playing': {e}")
+    except json.JSONDecodeError:
+        print("Failed to parse JSON from 'Now Playing' API response.")
     return None

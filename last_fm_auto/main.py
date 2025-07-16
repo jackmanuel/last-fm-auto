@@ -47,7 +47,61 @@ def update_song_scrobble_status(request_id: str, scrobble_status: str):
     except sqlite3.Error as e:
         print(f"Database error updating song scrobble_status for {request_id}: {e}")
 
-# --- Application Flow ---
+def get_playing_song(guild_id: str) -> sqlite3.Row | None:
+    """Fetches the current 'playing' song for a specific guild from the database."""
+    try:
+        conn = sqlite3.connect(config.DB_FILE, timeout=config.DB_TIMEOUT)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT * FROM play_history WHERE play_status = 'playing' AND guild_id = ? ORDER BY play_start_timestamp DESC LIMIT 1",
+            (guild_id,)
+        )
+        song = cursor.fetchone()
+        conn.close()
+        return song
+    except sqlite3.Error as e:
+        print(f"Database error fetching playing song: {e}")
+        return None
+
+def process_now_playing(pipeline_inst: pipeline.TrackPipeline, last_fm_now_playing_track: dict) -> dict:
+    """
+    Checks the currently playing song and updates Last.fm 'Now Playing' status if it has changed.
+    Returns the updated now playing track.
+    """
+    playing_song = get_playing_song(config.GUILD_ID)
+
+    # If no song is playing, there's nothing to do.
+    if not playing_song:
+        return last_fm_now_playing_track
+
+    # If the currently playing song is the same as the one we last reported, do nothing.
+    if last_fm_now_playing_track and last_fm_now_playing_track.get('request_id') == playing_song['request_id']:
+        return last_fm_now_playing_track
+
+    # A new song is playing
+    best_track = pipeline_inst.execute(playing_song['query'], playing_song['resolved_title'])
+
+    if best_track:
+        track_name = best_track.get('name')
+        artist_name = best_track.get('artist')
+        
+        # Update Last.fm
+        lastfm_client.update_now_playing(artist_name, track_name)
+
+        print(f"\n--- New 'Now Playing' Track: {track_name} ---")
+        
+        # Update our in-memory state
+        updated_track_info = {
+            'request_id': playing_song['request_id'],
+            'name': track_name,
+            'artist': artist_name
+        }
+        return updated_track_info
+    else:
+        print("No suitable track found for 'Now Playing'.")
+        # Return the old state since we couldn't process the new one
+        return last_fm_now_playing_track
 
 def process_new_songs(pipeline_inst: pipeline.TrackPipeline):
     """Fetches, processes, and scrobbles new songs."""
@@ -103,13 +157,19 @@ def main():
         sys.exit(0)
 
     print("Scrobbler starting in continuous mode... Press Ctrl+C to stop.")
-    wait_seconds = 30
+    wait_seconds = 5
     spinner_chars = ['|', '/', '-', '\\']
+    last_fm_now_playing_track = None
 
     try:
         while True:
+            # 1. Handle 'Now Playing' status
+            last_fm_now_playing_track = process_now_playing(pipeline_inst, last_fm_now_playing_track)
+
+            # 2. Handle scrobbling of completed tracks
             process_new_songs(pipeline_inst)
             
+            # 3. Wait before the next cycle
             for i in range(wait_seconds * 4):
                 char = spinner_chars[i % len(spinner_chars)]
                 sys.stdout.write(f"\rWaiting for new song plays... {char}")

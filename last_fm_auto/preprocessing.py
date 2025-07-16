@@ -35,7 +35,7 @@ def clean_youtube_title(title: str) -> str:
     """
     junk_patterns = [
         'official music video', 'official video', 'official live video', 'music video',
-        'official audio', 'official', 'lyric video', 'lyrics', 'audio',
+        'official audio', 'official', 'lyric video', 'official lyric video','lyrics', 'audio',
         'visualizer', 'official visualizer', 'hd', '4k', '1080p', '720p', 'live'
     ]
     

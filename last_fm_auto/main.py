@@ -19,13 +19,13 @@ SEARCHABLE_TRACKS = preprocessing._load_json_data(config.LOCAL_TRACKS_FILE, "Sea
 # --- Database Interaction ---
 
 def get_new_songs(guild_id: str) -> list:
-    """Fetches all 'new' songs for a specific guild from the database."""
+    """Fetches all 'new', 'completed' songs for a specific guild from the database."""
     try:
         conn = sqlite3.connect(config.DB_FILE, timeout=config.DB_TIMEOUT)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT * FROM play_history WHERE status = 'new' AND guild_id = ? ORDER BY timestamp DESC",
+            "SELECT * FROM play_history WHERE play_status = 'completed' AND scrobble_status = 'new' AND guild_id = ? ORDER BY play_start_timestamp DESC",
             (guild_id,)
         )
         songs = cursor.fetchall()
@@ -35,17 +35,17 @@ def get_new_songs(guild_id: str) -> list:
         print(f"Database error fetching new songs: {e}")
         return []
 
-def update_song_status(request_id: str, status: str):
-    """Updates the status of a song in the database."""
+def update_song_scrobble_status(request_id: str, scrobble_status: str):
+    """Updates the scrobble_status of a song in the database."""
     try:
         conn = sqlite3.connect(config.DB_FILE, timeout=config.DB_TIMEOUT)
         cursor = conn.cursor()
-        cursor.execute("UPDATE play_history SET status = ? WHERE request_id = ?", (status, request_id))
+        cursor.execute("UPDATE play_history SET scrobble_status = ? WHERE request_id = ?", (scrobble_status, request_id))
         conn.commit()
         conn.close()
-        print(f"Updated song {request_id} to status '{status}'.")
+        print(f"Updated song {request_id} to scrobble_status '{scrobble_status}'.")
     except sqlite3.Error as e:
-        print(f"Database error updating song status for {request_id}: {e}")
+        print(f"Database error updating song scrobble_status for {request_id}: {e}")
 
 # --- Application Flow ---
 
@@ -67,15 +67,15 @@ def process_new_songs(pipeline_inst: pipeline.TrackPipeline):
             track_name = best_track.get('name')
             artist_name = best_track.get('artist')
             
-            # Convert ISO timestamp to Unix timestamp
-            ts_utc = datetime.fromisoformat(song['timestamp']).replace(tzinfo=timezone.utc)
-            unix_ts = int(ts_utc.timestamp())
+            # Calculate scrobble timestamp from play_start_timestamp and duration
+            start_ts_utc = datetime.fromisoformat(song['play_start_timestamp']).replace(tzinfo=timezone.utc)
+            scrobble_ts = int(start_ts_utc.timestamp()) + song['duration']
             
-            scrobble_result = lastfm_client.scrobble_track(track_name, artist_name, unix_ts)
-            update_song_status(song['request_id'], 'scrobbled' if scrobble_result else 'failed')
+            scrobble_result = lastfm_client.scrobble_track(track_name, artist_name, scrobble_ts)
+            update_song_scrobble_status(song['request_id'], 'scrobbled' if scrobble_result else 'failed')
         else:
             print("No suitable track found to scrobble.")
-            update_song_status(song['request_id'], 'failed')
+            update_song_scrobble_status(song['request_id'], 'failed')
     return len(new_songs)
 
 def main():

@@ -6,6 +6,7 @@ of candidates based on similarity and popularity, ensuring that both the main
 pipeline and the evaluation scripts use the same logic.
 """
 from thefuzz import fuzz
+from .logger import log
 
 def _print_track_info(i, track, similarity_score, score):
     track_name = track.get('name', '')
@@ -18,15 +19,19 @@ def _print_track_info(i, track, similarity_score, score):
     LISTENERS_WIDTH = 10
     SCORE_WIDTH = 8
 
-    if i == 0:
-        print(f"{'Track':<{TRACK_WIDTH}} {'Artist':<{ARTIST_WIDTH}} {'Similarity':<{SIM_WIDTH}} {'Listeners':<{LISTENERS_WIDTH}} {'Score':<{SCORE_WIDTH}}")
-        print("-" * (TRACK_WIDTH + ARTIST_WIDTH + SIM_WIDTH + LISTENERS_WIDTH + SCORE_WIDTH + 4))
+    content_width = TRACK_WIDTH + ARTIST_WIDTH + SIM_WIDTH + LISTENERS_WIDTH + SCORE_WIDTH + 4
+    line_width = content_width + 4
 
-    print(f"{track_name:<{TRACK_WIDTH}.{TRACK_WIDTH}} "
-          f"{artist_name:<{ARTIST_WIDTH}.{ARTIST_WIDTH}} "
-          f"{similarity_score:<{SIM_WIDTH}.0f} "
-          f"{listeners:<{LISTENERS_WIDTH}} "
-          f"{score:<{SCORE_WIDTH}.3f}")
+    if i == 0:
+        log.info("-" * line_width)
+        log.info(f"| {'Track':<{TRACK_WIDTH}} {'Artist':<{ARTIST_WIDTH}} {'Similarity':<{SIM_WIDTH}} {'Listeners':<{LISTENERS_WIDTH}} {'Score':<{SCORE_WIDTH}} |")
+        log.info(f"|{'-' * (line_width - 2)}|")
+
+    log.info(f"| {track_name:<{TRACK_WIDTH}.{TRACK_WIDTH}} "
+              f"{artist_name:<{ARTIST_WIDTH}.{ARTIST_WIDTH}} "
+              f"{similarity_score:<{SIM_WIDTH}.0f} "
+              f"{listeners:<{LISTENERS_WIDTH}} "
+              f"{score:<{SCORE_WIDTH}.3f} |")
 
 
 def calculate_similarity(
@@ -101,5 +106,15 @@ def select_best_track(
         if score > max_score:
             max_score = score
             best_track = track
+
+    if print_info and popular_tracks:
+        TRACK_WIDTH = 50
+        ARTIST_WIDTH = 30
+        SIM_WIDTH = 12
+        LISTENERS_WIDTH = 10
+        SCORE_WIDTH = 8
+        content_width = TRACK_WIDTH + ARTIST_WIDTH + SIM_WIDTH + LISTENERS_WIDTH + SCORE_WIDTH + 4
+        line_width = content_width + 4
+        log.info("-" * line_width)
             
     return best_track, max_score

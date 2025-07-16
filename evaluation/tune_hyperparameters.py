@@ -90,6 +90,8 @@ def evaluate_hyperparameters(df: pd.DataFrame, search_results: dict, w_sim: floa
     return precision, recall, f1_score, accuracy, failures
 
 def main():
+    print("Starting hyperparameter tuning...")
+
     STRATEGY_MAP = {'linear': select_best_track_linear, 'log': select_best_track_log}
     parser = argparse.ArgumentParser(description="Tune weighted-sum hyperparameters, including a rejection threshold.")
     parser.add_argument("--ground-truth", required=True, help="Path to the ground truth CSV file.")

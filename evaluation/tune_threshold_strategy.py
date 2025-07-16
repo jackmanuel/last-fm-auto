@@ -28,7 +28,7 @@ def load_data(ground_truth_csv: str, search_results_json: str) -> tuple[pd.DataF
         with open(search_results_json, 'r', encoding='utf-8') as f:
             search_results = json.load(f)
     except FileNotFoundError as e:
-        print(f"Error: A required file was not found. Details: {e}")
+        print(f"A required file was not found. Details: {e}")
         sys.exit(1)
     
     # DO NOT dropna here, as null ground truth values are valid test cases.
@@ -106,7 +106,7 @@ def main():
 
     # Pre-process and filter data
     df['cleaned_query'] = df['resolved_title'].apply(lambda q: preprocessing.clean_youtube_title(str(q)))
-    df['has_local_match'] = df['cleaned_query'].apply(lambda q: pipeline._find_match_in_local_db(q) is not None)
+    df['has_local_match'] = df['cleaned_query'].apply(lambda q: pipeline.TrackPipeline.from_default_config([]).find_match_in_local_db(q, verbose=False) is not None)
     
     filtered_df = df[~df['has_local_match']].copy()
     print(f"Skipping {len(df) - len(filtered_df)} queries with a local DB match.")

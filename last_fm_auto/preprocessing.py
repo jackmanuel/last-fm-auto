@@ -6,6 +6,7 @@ This includes expanding abbreviations and cleaning YouTube titles.
 import re
 import json
 from . import config
+from .logger import log
 
 def _load_json_data(file_path, description):
     """Helper function to load data from a JSON file."""
@@ -13,10 +14,10 @@ def _load_json_data(file_path, description):
         with open(file_path, 'r', encoding='utf-8') as f:
             return json.load(f)
     except FileNotFoundError:
-        print(f"Warning: {description} file not found at {file_path}. This feature may not work.")
+        log.warning(f"{description} file not found at {file_path}. This feature may not work.")
         return {}
     except json.JSONDecodeError:
-        print(f"Warning: Could not decode {description} file at {file_path}.")
+        log.warning(f"Could not decode {description} file at {file_path}.")
         return {}
 
 # Load data at module level so it's only read from disk once.

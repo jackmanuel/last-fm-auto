@@ -5,6 +5,7 @@ from . import lastfm_client
 from . import scoring
 from . import preprocessing
 from . import config
+from .logger import log
 
 class TrackPipeline:
     """Orchestrates the track matching pipeline with configurable strategies"""
@@ -29,7 +30,7 @@ class TrackPipeline:
         best_match = None
         max_similarity = 0
         if verbose:
-            print(f"Searching local DB for query: \"{query}\"")
+            log.info(f"Searching local DB for query: \"{query}\"")
         for track_info in self.searchable_tracks:
             local_track_title = track_info.get("track")
             local_track_artist = track_info.get("artist")
@@ -42,7 +43,7 @@ class TrackPipeline:
                 best_match = {"name": local_track_title, "artist": local_track_artist}
 
         if best_match and max_similarity >= config.LOCAL_SIMILARITY_THRESHOLD:
-            print(
+            log.info(
                 f"Found suitable track in local DB for '{query}': "
                 f"'{best_match['name']}', '{best_match['artist']}' "
                 f"(Similarity: {max_similarity}%)"
@@ -50,13 +51,13 @@ class TrackPipeline:
             return best_match
         
         if verbose:
-            print(f"No suitable local match found for '{query}' locally.")
+            log.info(f"No suitable match found for '{query}' locally.")
         return None
 
     def _find_best_match_from_api(self, search_term: str) -> Optional[Dict]:
         """Search Last.fm API with error handling and stats tracking"""
         try:
-            print(f"Searching Last.fm with query: \"{search_term}\"")
+            log.info(f"Searching Last.fm with query: \"{search_term}\"")
             tracks = lastfm_client.search_track(search_term)
             
             if not tracks:
@@ -71,12 +72,12 @@ class TrackPipeline:
             )
 
             if best_track:
-                print(f"Found best match: '{best_track['name']}' with a score of {max_score:.3f}")
+                log.info(f"Found best match: '{best_track['name']}' with a score of {max_score:.3f}")
                 return best_track
                 
             return None
         except Exception as e:
-            print(f"API search failed for '{search_term}': {str(e)}")
+            log.error(f"API search failed for '{search_term}': {str(e)}")
             return None
 
     def execute(self, original_query: str, resolved_title: str, verbose: bool = True) -> Optional[Dict]:
@@ -109,7 +110,7 @@ class TrackPipeline:
             best_track = self._find_best_match_from_api(term)
             if best_track:
                 return best_track
-            print(f"Search for '{term}' failed. Trying next fallback if available.")
+            log.warning(f"Search for '{term}' failed. Trying next fallback if available.")
 
-        print(f"No suitable track found after trying all search terms.")
+        log.warning(f"No suitable track found after trying all search terms.")
         return None

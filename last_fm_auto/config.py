@@ -11,6 +11,14 @@ from dotenv import load_dotenv
 # Defines the absolute path to the project's root directory
 PROJECT_ROOT = Path(__file__).parent.parent
 
+# --- Logging Configuration ---
+# Define the logs directory relative to the project root.
+LOG_DIR = PROJECT_ROOT / "logs"
+
+# Create the logs directory if it doesn't exist.
+# The `exist_ok=True` argument prevents an error from being raised if the directory already exists.
+LOG_DIR.mkdir(exist_ok=True)
+
 # Load environment variables from a .env file
 ENV_PATH = PROJECT_ROOT / ".env"
 load_dotenv(dotenv_path=ENV_PATH)
@@ -43,6 +51,8 @@ LAST_FM_SEARCH_LIMIT = 10
 GUILD_ID = os.getenv('GUILD_ID')
 if not GUILD_ID:
     raise ValueError("GUILD_ID not found in .env file.")
+
+DEBUG_MODE = os.getenv('DEBUG_MODE', 'False').lower() == 'true'
 
 # --- Scoring Model Weights ---
 # Centralize weights here so they can be easily tuned.

@@ -8,6 +8,7 @@ import hashlib
 import json
 import sys
 from . import config
+from .logger import log
 
 # --- Authentication and API Key Management ---
 
@@ -15,8 +16,8 @@ def get_last_fm_session_key():
     """Fetches the Last.fm session key from environment variables."""
     session_key = config.LAST_FM_SESSION_KEY
     if not session_key:
-        print("FATAL: LAST_FM_SESSION_KEY environment variable not set.")
-        print("Please set the environment variable before running.")
+        log.critical("LAST_FM_SESSION_KEY environment variable not set.")
+        log.critical("Please set the environment variable before running.")
         sys.exit(1)
     return session_key
 
@@ -41,10 +42,10 @@ def get_auth_token(api_key, api_secret):
         data = response.json()
         return data.get('token')
     except requests.RequestException as e:
-        print(f"API request error while getting token: {e}")
+        log.error(f"API request error while getting token: {e}")
         return None
     except json.JSONDecodeError:
-        print("Failed to parse JSON from getToken API response.")
+        log.error("Failed to parse JSON from getToken API response.")
         return None
 
 def get_session_key(api_key, api_secret, token):
@@ -63,14 +64,14 @@ def get_session_key(api_key, api_secret, token):
         session = data.get('session')
         if not session or 'key' not in session:
             error_message = data.get('message', 'Unknown error')
-            print(f"Error getting session key: {error_message}")
+            log.error(f"Error getting session key: {error_message}")
             return None
         return session.get('key')
     except requests.RequestException as e:
-        print(f"API request error while getting session key: {e}")
+        log.error(f"API request error while getting session key: {e}")
         return None
     except json.JSONDecodeError:
-        print("Failed to parse JSON from getSession API response.")
+        log.error("Failed to parse JSON from getSession API response.")
         return None
 
 def _save_session_key_to_env(session_key):
@@ -91,7 +92,7 @@ def _save_session_key_to_env(session_key):
                 f.write(line)
         if not key_found:
             f.write(f'\nLAST_FM_SESSION_KEY="{session_key}"\n')
-    print("Session key successfully saved to .env file.")
+    log.info("Session key successfully saved to .env file.")
 
 
 def authenticate():
@@ -100,15 +101,15 @@ def authenticate():
     api_secret = config.LAST_FM_API_SECRET
 
     if not api_key or not api_secret:
-        print("Error: LAST_FM_API_KEY or LAST_FM_API_SECRET not found in .env file.")
-        print("Please create a .env file in the project root with your credentials.")
+        log.error("LAST_FM_API_KEY or LAST_FM_API_SECRET not found in .env file.")
+        log.error("Please create a .env file in the project root with your credentials.")
         sys.exit(1)
 
     # 1. Get an auth token
-    print("Requesting authentication token from Last.fm...")
+    log.info("Requesting authentication token from Last.fm...")
     token = get_auth_token(api_key, api_secret)
     if not token:
-        print("Could not get an authentication token. Please check your API key and secret.")
+        log.error("Could not get an authentication token. Please check your API key and secret.")
         sys.exit(1)
 
     # 2. Ask user to authorize
@@ -119,16 +120,16 @@ def authenticate():
     input("\nPress Enter after you have authorized the application...")
 
     # 3. Get a session key
-    print("\nFetching session key...")
+    log.info("Fetching session key...")
     session_key = get_session_key(api_key, api_secret, token)
 
     if session_key:
         # 4. Save the session key
         _save_session_key_to_env(session_key)
-        print("\nAuthentication successful! You can now run the scrobbler.")
+        log.info("Authentication successful! You can now run the scrobbler.")
     else:
-        print("\nAuthentication failed. Could not retrieve a session key.")
-        print("Please try the process again.")
+        log.error("Authentication failed. Could not retrieve a session key.")
+        log.error("Please try the process again.")
         sys.exit(1)
 
 # --- Search and Scrobbling Functions ---
@@ -148,15 +149,15 @@ def search_track(query: str) -> list | None:
         data = response.json()
         return data.get('results', {}).get('trackmatches', {}).get('track', [])
     except requests.RequestException as e:
-        print(f"API request error during search: {e}")
+        log.error(f"API request error during search: {e}")
     except json.JSONDecodeError:
-        print("Failed to parse JSON from search API response.")
+        log.error("Failed to parse JSON from search API response.")
     return None
 
 def scrobble_track(track: str, artist: str, timestamp: int) -> dict | None:
     """Scrobbles a track to Last.fm."""
     if not config.LAST_FM_SESSION_KEY:
-        print("Error: Cannot scrobble without a session key.")
+        log.error("Cannot scrobble without a session key.")
         return None
 
     params = {
@@ -176,22 +177,22 @@ def scrobble_track(track: str, artist: str, timestamp: int) -> dict | None:
         response_data = response.json()
 
         if 'error' in response_data:
-            print(f"Scrobble failed: {response_data['message']} (Code: {response_data['error']})")
+            log.error(f"Scrobble failed: {response_data['message']} (Code: {response_data['error']})")
             return None
         
-        print(f"Successfully scrobbled '{track}' by {artist}.")
+        log.info(f"Successfully scrobbled '{track}' by {artist}.")
         return response_data
     except requests.RequestException as e:
-        print(f"API request error while scrobbling: {e}")
+        log.error(f"API request error while scrobbling: {e}")
     except json.JSONDecodeError:
-        print("Failed to parse JSON from scrobble API response.")
+        log.error("Failed to parse JSON from scrobble API response.")
     return None
 
 
 def update_now_playing(artist: str, track: str) -> dict | None:
     """Updates the 'Now Playing' status on Last.fm."""
     if not config.LAST_FM_SESSION_KEY:
-        print("Error: Cannot update 'Now Playing' without a session key.")
+        log.error("Cannot update 'Now Playing' without a session key.")
         return None
 
     params = {
@@ -211,13 +212,13 @@ def update_now_playing(artist: str, track: str) -> dict | None:
         response_data = response.json()
 
         if 'error' in response_data:
-            print(f"Update 'Now Playing' failed: {response_data['message']} (Code: {response_data['error']})")
+            log.error(f"Update 'Now Playing' failed: {response_data['message']} (Code: {response_data['error']})")
             return None
 
-        print(f"Successfully updated 'Now Playing' for '{track}' by {artist}.")
+        log.info(f"Successfully updated 'Now Playing' for '{track}' by {artist}.")
         return response_data
     except requests.RequestException as e:
-        print(f"API request error while updating 'Now Playing': {e}")
+        log.error(f"API request error while updating 'Now Playing': {e}")
     except json.JSONDecodeError:
-        print("Failed to parse JSON from 'Now Playing' API response.")
+        log.error("Failed to parse JSON from 'Now Playing' API response.")
     return None

@@ -47,6 +47,9 @@ evaluation/data/last_fm_search_results_*.json
 evaluation/data/*.csv
 data/*.csv
 
+# Ignore logs
+logs/
+
 # Ignore generated output files from tuning.
 evaluation/data/*.txt
 

@@ -28,7 +28,7 @@ def load_data(ground_truth_csv: str, search_results_json: str) -> tuple[pd.DataF
         with open(search_results_json, 'r', encoding='utf-8') as f:
             search_results = json.load(f)
     except FileNotFoundError as e:
-        print(f"A required file was not found. Details: {e}")
+        print(f"Error: A required file was not found. Details: {e}")
         sys.exit(1)
     
     # DO NOT dropna here, as null ground truth values are valid test cases.

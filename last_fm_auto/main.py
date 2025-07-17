@@ -146,9 +146,12 @@ def process_new_songs(pipeline_inst: pipeline.TrackPipeline, processed_tracks_ca
                 artist_name = best_track.get('artist')
 
         if track_name and artist_name:
-            # Calculate scrobble timestamp from play_start_timestamp and duration
             start_ts_utc = datetime.fromisoformat(song['play_start_timestamp']).replace(tzinfo=timezone.utc)
-            scrobble_ts = int(start_ts_utc.timestamp()) + song['duration']
+            calculated_ts = int(start_ts_utc.timestamp()) + song['duration']
+
+            # If the song was skipped, its finish time might be in the future. Cap it to now.
+            current_ts = int(datetime.now(timezone.utc).timestamp())
+            scrobble_ts = min(calculated_ts, current_ts)
             
             scrobble_result = lastfm_client.scrobble_track(track_name, artist_name, scrobble_ts)
             update_song_scrobble_status(song['request_id'], 'scrobbled' if scrobble_result else 'failed')

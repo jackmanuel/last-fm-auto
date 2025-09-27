@@ -97,16 +97,6 @@ def split_artist_track(query: str, artist_list: list, threshold: int = 80):
     # 2. Handle "artist track" or "track artist" with fuzzy matching
     best_match = {"artist": None, "track": query, "score": 0}
     for artist in artist_list:
-        # Check for fuzzy match at the beginning
-        if len(query) >= len(artist):
-            query_start = query[:len(artist)]
-            score = fuzz.ratio(query_start.lower(), artist.lower())
-
-            if score >= threshold and score > best_match["score"]:
-                track = query[len(artist):].strip(" -")
-                if track: # Make sure we are not left with an empty track
-                    best_match = {"artist": artist, "track": track, "score": score}
-
         # Check for fuzzy match at the end
         if len(query) >= len(artist):
             query_end = query[-len(artist):]

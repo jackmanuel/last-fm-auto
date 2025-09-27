@@ -25,46 +25,59 @@ class TrackPipeline:
         }
         return cls(config=pipeline_config, searchable_tracks=searchable_tracks)
 
-    def find_match_in_local_db(self, query: str, verbose: bool = True) -> Optional[Dict]:
+    def find_match_in_local_db(self, track: str, artist: Optional[str] = None, verbose: bool = True) -> Optional[Dict]:
         """Searches for the best matching track in the local searchable_tracks.json."""
         best_match = None
         max_similarity = 0
+        
+        query_for_log = f"{artist} - {track}" if artist else track
         if verbose:
-            log.info(f"Searching local DB for query: \"{query}\"")
+            log.info(f'Searching local DB for query: "{query_for_log}"')
+
         for track_info in self.searchable_tracks:
             local_track_title = track_info.get("track")
             local_track_artist = track_info.get("artist")
             if not local_track_title or not local_track_artist:
                 continue
 
-            similarity = scoring.calculate_similarity(query, local_track_title, local_track_artist)
+            if artist:
+                # If we have a split query, match artist and track separately
+                artist_similarity = fuzz.ratio(artist, local_track_artist)
+                track_similarity = fuzz.ratio(track, local_track_title)
+                # Combine scores (giving more weight to track)
+                similarity = (0.4 * artist_similarity) + (0.6 * track_similarity)
+            else:
+                # Fallback to original method if no artist was split
+                similarity = scoring.calculate_similarity(track, local_track_title, local_track_artist)
+
             if similarity > max_similarity:
                 max_similarity = similarity
                 best_match = {"name": local_track_title, "artist": local_track_artist}
 
         if best_match and max_similarity >= config.LOCAL_SIMILARITY_THRESHOLD:
             log.info(
-                f"Found suitable track in local DB for '{query}': "
+                f"Found suitable track in local DB for '{query_for_log}': "
                 f"'{best_match['name']}', '{best_match['artist']}' "
-                f"(Similarity: {max_similarity}%)"
+                f"(Similarity: {max_similarity:.2f}%)"
             )
             return best_match
         
         if verbose:
-            log.info(f"No suitable match found for '{query}' locally.")
+            log.info(f"No suitable match found for '{query_for_log}' locally.")
         return None
 
-    def _find_best_match_from_api(self, search_term: str) -> Optional[Dict]:
+    def _find_best_match_from_api(self, track: str, artist: Optional[str] = None) -> Optional[Dict]:
         """Search Last.fm API with error handling and stats tracking"""
         try:
-            log.info(f"Searching Last.fm with query: \"{search_term}\"")
-            tracks = lastfm_client.search_track(search_term)
-            
+            search_query = f"{artist} - {track}" if artist else track
+            log.info(f'Searching Last.fm with query: "{search_query}"')
+            tracks = lastfm_client.search_track(track, artist=artist)
+
             if not tracks:
                 return None
 
             best_track, max_score = scoring.select_best_track(
-                search_term,
+                search_query,
                 tracks,
                 weight_similarity=self.config['WEIGHT_SIMILARITY'],
                 weight_popularity=self.config['WEIGHT_POPULARITY'],
@@ -74,12 +87,12 @@ class TrackPipeline:
             if best_track:
                 log.info(f"Found best match: '{best_track['name']}' with a score of {max_score:.3f}")
                 return best_track
-                
+
             return None
         except Exception as e:
-            log.error(f"API search failed for '{search_term}': {str(e)}")
+            log.error(f"API search failed for '{search_query}': {str(e)}")
             return None
-
+        
     def execute(self, original_query: str, resolved_title: str, verbose: bool = True) -> Optional[Dict]:
         """
         Main pipeline entry point. Cleans inputs and tries multiple strategies
@@ -88,29 +101,61 @@ class TrackPipeline:
         # Step 1: Pre-process inputs
         expanded_query = preprocessing.expand_abbreviations(original_query)
         cleaned_query = preprocessing.clean_youtube_title(expanded_query)
-
         cleaned_resolved_title = preprocessing.clean_youtube_title(resolved_title)
 
-        # Step 2: Determine API search terms
-        is_youtube_url = 'youtube.com' in original_query or 'youtu.be' in original_query
-        search_terms = [cleaned_resolved_title] if is_youtube_url else [cleaned_query]
-        
-        # Add resolved_title as a fallback if different
-        if not is_youtube_url and cleaned_resolved_title.lower() != cleaned_query.lower():
-            search_terms.append(cleaned_resolved_title)
+        # Step 2: Split query and try precise local search
+        log.info("Attempting to split query into track and artist.")
+        split_query = preprocessing.split_artist_track(cleaned_query, preprocessing.ARTIST_LIST)
+        if split_query.get("artist"):
+            log.info(f"Query split into Artist: '{split_query['artist']}' and Track: '{split_query['track']}'")
+            local_match = self.find_match_in_local_db(
+                track=split_query['track'], 
+                artist=split_query['artist'], 
+                verbose=verbose
+            )
+            if local_match:
+                return local_match
+        else:
+            log.info("Attempt to split query into track and artist failed.")
 
-        # Step 3: Check local database
+        # Step 3: Fallback to local search with full queries
+        search_terms = [cleaned_query]
+        if cleaned_resolved_title.lower() != cleaned_query.lower():
+            search_terms.append(cleaned_resolved_title)
+        
         for term in search_terms:
-            local_match = self.find_match_in_local_db(term, verbose)
+            local_match = self.find_match_in_local_db(track=term, verbose=verbose)
             if local_match:
                 return local_match
 
-        # Step 4: Execute search against API
-        for term in search_terms:
-            best_track = self._find_best_match_from_api(term)
-            if best_track:
-                return best_track
-            log.warning(f"Search for '{term}' failed. Trying next fallback if available.")
-
-        log.warning(f"No suitable track found after trying all search terms.")
-        return None
+            # Step 4: Execute search against API
+            # If a query was split, first try a precise search using artist and track
+            if split_query.get("artist"):
+                best_track = self._find_best_match_from_api(
+                    track=split_query['track'],
+                    artist=split_query['artist']
+                )
+                if best_track:
+                    return best_track
+                log.info("Precise API search with artist/track failed, falling back to other search terms.")
+    
+            # Fallback to searching with the original cleaned queries
+            if split_query.get("artist"):
+                api_search_query = f"{split_query['artist']} {split_query['track']}"
+            else:
+                api_search_query = cleaned_query
+    
+            is_youtube_url = 'youtube.com' in original_query or 'youtu.be' in original_query
+            api_search_terms = [cleaned_resolved_title] if is_youtube_url else [api_search_query]
+    
+            if not is_youtube_url and cleaned_resolved_title.lower() != api_search_query.lower():
+                api_search_terms.append(cleaned_resolved_title)
+    
+            for term in api_search_terms:
+                best_track = self._find_best_match_from_api(track=term)
+                if best_track:
+                    return best_track
+                log.warning(f"Search for '{term}' failed. Trying next fallback if available.")
+    
+            log.warning(f"No suitable track found after trying all search terms.")
+            return None

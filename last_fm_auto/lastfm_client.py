@@ -134,15 +134,17 @@ def authenticate():
 
 # --- Search and Scrobbling Functions ---
 
-def search_track(query: str) -> list | None:
+def search_track(track: str, artist: str | None = None) -> list | None:
     """Searches Last.fm API, parses the JSON, and returns the list of tracks."""
     params = {
         'method': 'track.search',
-        'track': query,
+        'track': track,
         'api_key': config.LAST_FM_API_KEY,
         'format': 'json',
         'limit': config.LAST_FM_SEARCH_LIMIT
     }
+    if artist:
+        params['artist'] = artist
     try:
         response = requests.get(config.LAST_FM_API_URL, params=params)
         response.raise_for_status()

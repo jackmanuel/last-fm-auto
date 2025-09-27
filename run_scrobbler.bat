@@ -41,4 +41,4 @@ python -m last_fm_auto.main
 REM --- Optional: Pause on Exit ---
 REM Uncomment the line below if you want the window to stay open after the
 REM script finishes (useful for debugging, but not for startup).
-REM PAUSE
+PAUSE

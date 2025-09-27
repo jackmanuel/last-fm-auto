@@ -24,9 +24,11 @@ ENV_PATH = PROJECT_ROOT / ".env"
 load_dotenv(dotenv_path=ENV_PATH)
 
 # --- Database Configuration ---
-DB_FILE = os.getenv('DATABASE_PATH')
-if not DB_FILE:
+db_path_from_env = os.getenv('DATABASE_PATH')
+if not db_path_from_env:
     raise ValueError("DATABASE_PATH not found in .env file.")
+
+DB_FILE: str = db_path_from_env
 
 DB_TIMEOUT = 20.0
 

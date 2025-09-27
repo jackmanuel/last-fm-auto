@@ -15,7 +15,7 @@ ECHO Project directory set to: %PROJECT_DIR%
 
 REM --- Step 2: Activate the Virtual Environment ---
 REM Check if the virtual environment exists before trying to activate it.
-IF NOT EXIST "%PROJECT_DIR%venv\Scripts\activate.bat" (
+IF NOT EXIST "%PROJECT_DIR%.venv\Scripts\activate.bat" (
     ECHO.
     ECHO ERROR: Virtual environment not found!
     ECHO Please ensure you have run the setup steps from the README.md file.
@@ -25,7 +25,7 @@ IF NOT EXIST "%PROJECT_DIR%venv\Scripts\activate.bat" (
 )
 
 ECHO Activating the virtual environment...
-CALL "%PROJECT_DIR%venv\Scripts\activate.bat"
+CALL "%PROJECT_DIR%.venv\Scripts\activate.bat"
 
 REM --- Step 3: Change to the Project Directory ---
 REM Change the current directory to the project root. This ensures that

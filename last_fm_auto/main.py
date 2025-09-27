@@ -8,6 +8,7 @@ import time
 import sys
 import argparse
 from datetime import datetime, timezone
+from typing import List, Dict, Any
 from . import config
 from . import pipeline
 from . import lastfm_client
@@ -15,7 +16,8 @@ from . import preprocessing
 from .logger import log
 
 # Load the searchable tracks once when the module is initialized
-SEARCHABLE_TRACKS = preprocessing._load_json_data(config.LOCAL_TRACKS_FILE, "Searchable Tracks")
+searchable_tracks_data = preprocessing._load_json_data(config.LOCAL_TRACKS_FILE, "Searchable Tracks")
+SEARCHABLE_TRACKS: List[Dict[Any, Any]] = searchable_tracks_data if isinstance(searchable_tracks_data, list) else []
 
 # --- Database Interaction ---
 
@@ -71,6 +73,10 @@ def process_now_playing(pipeline_inst: pipeline.TrackPipeline, last_fm_now_playi
     and caches the processed track details.
     Returns the updated now playing track.
     """
+    if not config.GUILD_ID:
+        log.warning("GUILD_ID not configured. Skipping 'Now Playing' check.")
+        return last_fm_now_playing_track
+        
     playing_song = get_playing_song(config.GUILD_ID)
 
     # If no song is playing, there's nothing to do.
@@ -112,6 +118,10 @@ def process_new_songs(pipeline_inst: pipeline.TrackPipeline, processed_tracks_ca
     Fetches new songs, processes them, and scrobbles them.
     Uses a cache of processed tracks to avoid redundant pipeline calls.
     """
+    if not config.GUILD_ID:
+        log.warning("GUILD_ID not configured. Skipping new song processing.")
+        return 0
+        
     new_songs = get_new_songs(config.GUILD_ID)
     if not new_songs:
         return 0
@@ -186,9 +196,9 @@ def main():
         sys.exit(0)
 
     log.info("Scrobbler starting in continuous mode... Press Ctrl+C to stop.")
-    log.debug("Guild ID: " + config.GUILD_ID)
+    log.debug(f"Guild ID: {config.GUILD_ID}")
     wait_seconds = 5
-    last_fm_now_playing_track = None
+    last_fm_now_playing_track: Dict[Any, Any] | None = None
     processed_tracks_cache = {}
     
 
@@ -196,7 +206,7 @@ def main():
         while True:
             # 1. Handle 'Now Playing' status and cache the result
             last_fm_now_playing_track = process_now_playing(
-                pipeline_inst, last_fm_now_playing_track, processed_tracks_cache
+                pipeline_inst, last_fm_now_playing_track or {}, processed_tracks_cache
             )
 
             # 2. Handle scrobbling of completed tracks, using the cache

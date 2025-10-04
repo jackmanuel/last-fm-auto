@@ -21,14 +21,28 @@ def main():
         description="Run a single test query through the track matching pipeline."
     )
     parser.add_argument(
-        "query_string",
+        "--query",
         type=str,
         help="The search query to test, e.g., 'My Song (Music Video)'"
     )
+    parser.add_argument(
+        "--resolved-title",
+        type=str,
+        help="The resolved title to use"
+    )
     args = parser.parse_args()
 
+    # Validate that at least one argument is provided
+    if not args.query and not args.resolved_title:
+        parser.error("At least one of --query or --resolved-title must be provided")
+
+    # Use the provided values or fall back to the other if one is missing
+    query = args.query if args.query else args.resolved_title
+    resolved_title = args.resolved_title if args.resolved_title else args.query
+
     print(f"--- Running Test Query ---")
-    print(f"Input: \"{args.query_string}\"")
+    print(f"Input Query: \"{query}\"")
+    print(f"Resolved Title: \"{resolved_title}\"")
     print("-" * 26)
 
     # Load searchable tracks from the local JSON file
@@ -42,10 +56,10 @@ def main():
     # Instantiate the pipeline using the default configuration
     pipeline = TrackPipeline.from_default_config(searchable_tracks=searchable_tracks)
 
-    # For a manual query, the original_query and resolved_title are the same.
+    # Execute the pipeline with the provided query and resolved title
     best_match = pipeline.execute(
-        original_query=args.query_string,
-        resolved_title=args.query_string
+        original_query=query,
+        resolved_title=resolved_title
     )
 
     print("-" * 26)

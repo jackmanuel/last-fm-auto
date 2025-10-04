@@ -93,20 +93,13 @@ class TrackPipeline:
             log.error(f"API search failed for '{search_query}': {str(e)}")
             return None
         
-    def execute(self, original_query: str, resolved_title: str, verbose: bool = True) -> Optional[Dict]:
+    def _try_split_and_match(self, query: str, verbose: bool = True) -> Optional[Dict]:
         """
-        Main pipeline entry point. Cleans inputs and tries multiple strategies
-        to find the best possible track match.
+        Attempts to split a query into artist/track and tries local and API matching.
+        Returns a match if found, None otherwise.
         """
-        # Step 1: Pre-process inputs
-        expanded_query = preprocessing.expand_abbreviations(original_query)
-        cleaned_query = preprocessing.clean_youtube_title(expanded_query)
-
-        cleaned_resolved_title = preprocessing.clean_youtube_title(resolved_title)
-
-        # Step 2: Split query and try precise search with artist/track
-        log.info(f"Attempting to split query '{cleaned_query}' into track and artist.")
-        split_query = preprocessing.split_artist_track(cleaned_query, preprocessing.ARTIST_LIST)
+        log.info(f"Attempting to split query '{query}' into track and artist.")
+        split_query = preprocessing.split_artist_track(query, preprocessing.ARTIST_LIST)
         
         if split_query.get("artist"):
             log.info(f"Query split into Artist: '{split_query['artist']}' and Track: '{split_query['track']}'")
@@ -128,11 +121,30 @@ class TrackPipeline:
             if best_track:
                 return best_track
                 
-            log.info("Both local and API searches with split query failed, falling back to original query.")
+            log.info("Both local and API searches with split query failed.")
         else:
             log.info("Attempt to split query into track and artist failed.")
+        
+        return None
+        
+    def execute(self, original_query: str, resolved_title: str, verbose: bool = True) -> Optional[Dict]:
+        """
+        Main pipeline entry point. Cleans inputs and tries multiple strategies
+        to find the best possible track match.
+        """
+        # Step 1: Pre-process inputs
+        expanded_query = preprocessing.expand_abbreviations(original_query)
+        cleaned_query = preprocessing.clean_youtube_title(expanded_query)
+
+        cleaned_resolved_title = preprocessing.clean_youtube_title(resolved_title)
+
+        # Step 2: Try splitting the original query and matching
+        split_match = self._try_split_and_match(cleaned_query, verbose)
+        if split_match:
+            return split_match
 
         # Step 3: Fallback to original query (cleaned but not split)
+        log.info("Falling back to original query without splitting.")
         # First try local search with original query
         local_match = self.find_match_in_local_db(track=cleaned_query, verbose=verbose)
         if local_match:
@@ -145,8 +157,16 @@ class TrackPipeline:
         
         log.info(f"Search with original query failed, trying final fallback.")
 
-        # Step 4: Final fallback to cleaned resolved YouTube title
+        # Step 4: Final fallback to cleaned resolved YouTube title with splitting
         if cleaned_resolved_title.lower() != cleaned_query.lower():
+            log.info(f"Trying final fallback with resolved YouTube title: '{cleaned_resolved_title}'")
+            
+            # Try splitting the YouTube title first
+            split_match = self._try_split_and_match(cleaned_resolved_title, verbose)
+            if split_match:
+                return split_match
+            
+            # If splitting fails, try without splitting
             local_match = self.find_match_in_local_db(track=cleaned_resolved_title, verbose=verbose)
             if local_match:
                 return local_match

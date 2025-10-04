@@ -101,61 +101,59 @@ class TrackPipeline:
         # Step 1: Pre-process inputs
         expanded_query = preprocessing.expand_abbreviations(original_query)
         cleaned_query = preprocessing.clean_youtube_title(expanded_query)
+
         cleaned_resolved_title = preprocessing.clean_youtube_title(resolved_title)
 
-        # Step 2: Split query and try precise local search
-        log.info("Attempting to split query into track and artist.")
+        # Step 2: Split query and try precise search with artist/track
+        log.info(f"Attempting to split query '{cleaned_query}' into track and artist.")
         split_query = preprocessing.split_artist_track(cleaned_query, preprocessing.ARTIST_LIST)
+        
         if split_query.get("artist"):
             log.info(f"Query split into Artist: '{split_query['artist']}' and Track: '{split_query['track']}'")
+            
+            # First try local match with split query
             local_match = self.find_match_in_local_db(
-                track=split_query['track'], 
-                artist=split_query['artist'], 
+                track=split_query['track'],
+                artist=split_query['artist'],
                 verbose=verbose
             )
             if local_match:
                 return local_match
+            
+            # Then try API search with split query
+            best_track = self._find_best_match_from_api(
+                track=split_query['track'],
+                artist=split_query['artist']
+            )
+            if best_track:
+                return best_track
+                
+            log.info("Both local and API searches with split query failed, falling back to original query.")
         else:
             log.info("Attempt to split query into track and artist failed.")
 
-        # Step 3: Fallback to local search with full queries
-        search_terms = [cleaned_query]
-        if cleaned_resolved_title.lower() != cleaned_query.lower():
-            search_terms.append(cleaned_resolved_title)
+        # Step 3: Fallback to original query (cleaned but not split)
+        # First try local search with original query
+        local_match = self.find_match_in_local_db(track=cleaned_query, verbose=verbose)
+        if local_match:
+            return local_match
         
-        for term in search_terms:
-            local_match = self.find_match_in_local_db(track=term, verbose=verbose)
+        # Then try API search with original query
+        best_track = self._find_best_match_from_api(track=cleaned_query)
+        if best_track:
+            return best_track
+        
+        log.info(f"Search with original query failed, trying final fallback.")
+
+        # Step 4: Final fallback to cleaned resolved YouTube title
+        if cleaned_resolved_title.lower() != cleaned_query.lower():
+            local_match = self.find_match_in_local_db(track=cleaned_resolved_title, verbose=verbose)
             if local_match:
                 return local_match
+            
+            best_track = self._find_best_match_from_api(track=cleaned_resolved_title)
+            if best_track:
+                return best_track
 
-            # Step 4: Execute search against API
-            # If a query was split, first try a precise search using artist and track
-            if split_query.get("artist"):
-                best_track = self._find_best_match_from_api(
-                    track=split_query['track'],
-                    artist=split_query['artist']
-                )
-                if best_track:
-                    return best_track
-                log.info("Precise API search with artist/track failed, falling back to other search terms.")
-    
-            # Fallback to searching with the original cleaned queries
-            if split_query.get("artist"):
-                api_search_query = f"{split_query['artist']} {split_query['track']}"
-            else:
-                api_search_query = cleaned_query
-    
-            is_youtube_url = 'youtube.com' in original_query or 'youtu.be' in original_query
-            api_search_terms = [cleaned_resolved_title] if is_youtube_url else [api_search_query]
-    
-            if not is_youtube_url and cleaned_resolved_title.lower() != api_search_query.lower():
-                api_search_terms.append(cleaned_resolved_title)
-    
-            for term in api_search_terms:
-                best_track = self._find_best_match_from_api(track=term)
-                if best_track:
-                    return best_track
-                log.warning(f"Search for '{term}' failed. Trying next fallback if available.")
-    
-            log.warning(f"No suitable track found after trying all search terms.")
-            return None
+        log.warning(f"No suitable track found after trying all search strategies.")
+        return None

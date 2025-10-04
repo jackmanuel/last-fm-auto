@@ -73,7 +73,7 @@ def clean_youtube_title(title: str) -> str:
 def split_artist_track(query: str, artist_list: list, threshold: int = 80):
     """
     Attempts to split a query into artist and track using fuzzy matching against a known artist list.
-    Handles "track artist", "artist track", and "track" formats.
+    Handles "track artist" and "track" formats.
     If a split cannot be found, the original query is returned as the track.
     """
     if not artist_list:
@@ -94,20 +94,29 @@ def split_artist_track(query: str, artist_list: list, threshold: int = 80):
         if score2 > score1 and score2 >= threshold:
             return {"artist": match2, "track": part1}
 
-    # 2. Handle "artist track" or "track artist" with fuzzy matching
+    # 2. Handle "track artist" with fuzzy matching on word combinations
+    words = query.split()
     best_match = {"artist": None, "track": query, "score": 0}
-    for artist in artist_list:
-        # Check for fuzzy match at the end
-        if len(query) >= len(artist):
-            query_end = query[-len(artist):]
-            score = fuzz.ratio(query_end.lower(), artist.lower())
 
-            if score >= threshold and score > best_match["score"]:
-                track = query[:-len(artist):].strip(" -")
-                if track:
-                    best_match = {"artist": artist, "track": track, "score": score}
+    # Check for "track artist" format by trying all split points
+    for i in range(1, len(words)):
+        track_candidate = " ".join(words[:i])
+        artist_candidate = " ".join(words[i:])
+        result = process.extractOne(artist_candidate, artist_list)
+        if result:
+            match, score, *_= result
 
-    if best_match["artist"]:
+            shorter_len = min(len(artist_candidate), len(match))
+            longer_len = max(len(artist_candidate), len(match))
+
+            if longer_len > 0:
+                length_ratio = shorter_len / longer_len
+                score *= (length_ratio) # Punish matches with length differences
+
+            if score > best_match["score"]:
+                best_match = {"artist": match, "track": track_candidate, "score": score}
+
+    if best_match["score"] >= threshold and best_match["track"]:
         return {"artist": best_match["artist"], "track": best_match["track"]}
 
     # 3. If no clear split, return the original query as the track

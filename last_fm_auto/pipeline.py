@@ -1,5 +1,6 @@
 from typing import Optional, Dict, List
 from datetime import datetime
+import re
 from thefuzz import fuzz
 from . import lastfm_client
 from . import scoring
@@ -24,6 +25,13 @@ class TrackPipeline:
             'POPULARITY_THRESHOLD': config.POPULARITY_THRESHOLD
         }
         return cls(config=pipeline_config, searchable_tracks=searchable_tracks)
+
+    def _is_youtube_url(self, query: str) -> bool:
+        """
+        Detects if a query is a YouTube URL.
+        Returns True if the query contains youtube.com or youtu.be.
+        """
+        return 'youtube.com' in query.lower() or 'youtu.be' in query.lower()
 
     def find_match_in_local_db(self, track: str, artist: Optional[str] = None, verbose: bool = True) -> Optional[Dict]:
         """Searches for the best matching track in the local searchable_tracks.json."""
@@ -127,53 +135,73 @@ class TrackPipeline:
         
         return None
         
+    def _try_match_strategies(self, query: str, verbose: bool = True) -> Optional[Dict]:
+        """
+        Tries multiple strategies to find a match for a query:
+        1. Split query and match locally and via API
+        2. Match without splitting locally and via API
+        Returns a match if found, None otherwise.
+        """
+        # First try splitting the query
+        split_match = self._try_split_and_match(query, verbose)
+        if split_match:
+            return split_match
+        
+        # Fallback to query without splitting
+        log.info("Falling back to query without splitting.")
+        # First try local search
+        local_match = self.find_match_in_local_db(track=query, verbose=verbose)
+        if local_match:
+            return local_match
+        
+        # Then try API search
+        best_track = self._find_best_match_from_api(track=query)
+        if best_track:
+            return best_track
+        
+        log.info(f"Search with query failed.")
+        return None
+        
     def execute(self, original_query: str, resolved_title: str, verbose: bool = True) -> Optional[Dict]:
         """
         Main pipeline entry point. Cleans inputs and tries multiple strategies
         to find the best possible track match.
         """
-        # Step 1: Pre-process inputs
-        expanded_query = preprocessing.expand_abbreviations(original_query)
-        cleaned_query = preprocessing.clean_youtube_title(expanded_query)
-
+        # Check if the query is a YouTube URL
+        is_youtube_url = self._is_youtube_url(original_query)
+        
+        # Always process the resolved title
         cleaned_resolved_title = preprocessing.clean_youtube_title(resolved_title)
-
-        # Step 2: Try splitting the original query and matching
-        split_match = self._try_split_and_match(cleaned_query, verbose)
-        if split_match:
-            return split_match
-
-        # Step 3: Fallback to original query (cleaned but not split)
-        log.info("Falling back to original query without splitting.")
-        # First try local search with original query
-        local_match = self.find_match_in_local_db(track=cleaned_query, verbose=verbose)
-        if local_match:
-            return local_match
         
-        # Then try API search with original query
-        best_track = self._find_best_match_from_api(track=cleaned_query)
-        if best_track:
-            return best_track
-        
-        log.info(f"Search with original query failed, trying final fallback.")
+        if is_youtube_url:
+            log.info(f"Detected YouTube URL: '{original_query}'. Query will be skipped, using only resolved title.")
+            # For YouTube URLs, we don't process the URL as a query
+            cleaned_query = None
+        else:
+            # Step 1: Pre-process inputs for non-URL queries
+            expanded_query = preprocessing.expand_abbreviations(original_query)
+            cleaned_query = preprocessing.clean_youtube_title(expanded_query)
 
-        # Step 4: Final fallback to cleaned resolved YouTube title with splitting
-        if cleaned_resolved_title.lower() != cleaned_query.lower():
-            log.info(f"Trying final fallback with resolved YouTube title: '{cleaned_resolved_title}'")
+        # Step 2: Try matching with the query (only if we have a non-URL query)
+        if cleaned_query:
+            match = self._try_match_strategies(cleaned_query, verbose)
+            if match:
+                return match
             
-            # Try splitting the YouTube title first
-            split_match = self._try_split_and_match(cleaned_resolved_title, verbose)
-            if split_match:
-                return split_match
+            log.info(f"Search with query failed, trying final fallback.")
+        
+        # Step 3: Final fallback to cleaned resolved YouTube title
+        # Skip if the query was already the YouTube title (to avoid redundant searches)
+        if cleaned_resolved_title and (not cleaned_query or cleaned_resolved_title.lower() != cleaned_query.lower()):
+            if cleaned_query:
+                log.info(f"Trying final fallback with resolved title: '{cleaned_resolved_title}'")
+            else:
+                log.info(f"Using resolved title as primary query: '{cleaned_resolved_title}'")
             
-            # If splitting fails, try without splitting
-            local_match = self.find_match_in_local_db(track=cleaned_resolved_title, verbose=verbose)
-            if local_match:
-                return local_match
-            
-            best_track = self._find_best_match_from_api(track=cleaned_resolved_title)
-            if best_track:
-                return best_track
+            # Try matching with the resolved title
+            match = self._try_match_strategies(cleaned_resolved_title, verbose)
+            if match:
+                return match
 
         log.warning(f"No suitable track found after trying all search strategies.")
         return None

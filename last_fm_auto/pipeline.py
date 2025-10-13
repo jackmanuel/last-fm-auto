@@ -1,6 +1,4 @@
 from typing import Optional, Dict, List
-from datetime import datetime
-import re
 from thefuzz import fuzz
 from . import lastfm_client
 from . import scoring

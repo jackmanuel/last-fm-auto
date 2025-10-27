@@ -32,7 +32,9 @@ REM Change the current directory to the project root. This ensures that
 REM Python's module resolution and any relative file paths work correctly.
 cd /d "%PROJECT_DIR%"
 
-REM --- Step 4: Run the Main Python Application ---
+REM --- Step 4: Set UTF-8 Encoding and Run the Main Python Application ---
+ECHO Setting UTF-8 encoding for proper character handling...
+set PYTHONIOENCODING=utf-8
 ECHO Starting the scrobbler application...
 ECHO (To stop the scrobbler, close this window or press Ctrl+C)
 ECHO.

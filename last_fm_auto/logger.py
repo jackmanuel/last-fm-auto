@@ -1,6 +1,8 @@
 import logging
 import logging.handlers
 import os
+import sys
+import io
 
 from .config import LOG_DIR, DEBUG_MODE
 
@@ -13,7 +15,7 @@ def setup_logging():
     logger.setLevel(log_level)
 
     handler = logging.handlers.TimedRotatingFileHandler(
-        LOG_FILE, when="midnight", interval=1, backupCount=7
+        LOG_FILE, when="midnight", interval=1, backupCount=7, encoding='utf-8'
     )
 
     formatter = logging.Formatter(
@@ -23,7 +25,9 @@ def setup_logging():
     logger.addHandler(handler)
 
     # Also log to console for development
-    console_handler = logging.StreamHandler()
+    # Create a custom stream with UTF-8 encoding to handle special characters
+    console_stream = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    console_handler = logging.StreamHandler(console_stream)
     console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
 

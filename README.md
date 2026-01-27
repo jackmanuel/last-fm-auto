@@ -80,8 +80,10 @@ This project provides a sophisticated pipeline for automatically scrobbling trac
     | `query` | TEXT | The raw song title to be searched for (can be a YouTube Link). |
     | `resolved_title` | TEXT | The resolved title of the YouTube video returned. |
     | `guild_id` | TEXT | The guild id of the server that should be scrobbled. |
-    | `timestamp` | TEXT | The timestamp that the song will be scrobbled at (eg. 2024-11-01T17:02:49.765055) Must be UTC.
-    | `status` | TEXT | The processing status. This is either `new`, `scrobbled`, or `failed`.|
+    | `play_start_timestamp` | TEXT | The UTC timestamp when the song started playing (eg. 2024-11-01T17:02:49.765055). |
+    | `duration` | INTEGER | The duration of the song in seconds. |
+    | `play_status` | TEXT | The playback status. This is either `playing` or `completed`. |
+    | `scrobble_status` | TEXT | The scrobble processing status. This is either `new`, `scrobbled`, or `failed`. |
 
     **Integration Flexibility**
 

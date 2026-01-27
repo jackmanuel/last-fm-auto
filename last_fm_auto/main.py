@@ -101,12 +101,17 @@ def process_now_playing(pipeline_inst: pipeline.TrackPipeline, last_fm_now_playi
     updated_track_info = {
         'request_id': request_id,
         'name': best_track.get('name') if best_track else None,
-        'artist': best_track.get('artist') if best_track else None
+        'artist': best_track.get('artist') if best_track else None,
+        'album': best_track.get('album') if best_track else None
     }
 
     if best_track:
         # Update Last.fm 'Now Playing' only if we found a valid track
-        lastfm_client.update_now_playing(updated_track_info['artist'], updated_track_info['name'])
+        lastfm_client.update_now_playing(
+            updated_track_info['artist'],
+            updated_track_info['name'],
+            updated_track_info.get('album')
+        )
         log.info(f"Updated 'Now Playing' to: {updated_track_info['name']}")
     else:
         log.warning("No suitable track found for 'Now Playing'. Caching failure.")
@@ -132,7 +137,7 @@ def process_new_songs(pipeline_inst: pipeline.TrackPipeline, processed_tracks_ca
         request_id = song['request_id']
         log.info(f"--- Processing Song ID: {request_id} ---")
         
-        track_name, artist_name = None, None
+        track_name, artist_name, album_name = None, None, None
 
         # Optimization: Check if the track has already been processed and is in our cache.
         if request_id in processed_tracks_cache:
@@ -147,6 +152,7 @@ def process_new_songs(pipeline_inst: pipeline.TrackPipeline, processed_tracks_ca
 
             track_name = cached_info.get('name')
             artist_name = cached_info.get('artist')
+            album_name = cached_info.get('album')
         else:
             # Fallback for songs that weren't 'Now Playing' (e.g., from a backlog)
             log.info(f"No cache hit. Query: {song['query']}, Resolved Title: {song['resolved_title']}")
@@ -154,6 +160,7 @@ def process_new_songs(pipeline_inst: pipeline.TrackPipeline, processed_tracks_ca
             if best_track:
                 track_name = best_track.get('name')
                 artist_name = best_track.get('artist')
+                album_name = best_track.get('album')
 
         if track_name and artist_name:
             start_ts_utc = datetime.fromisoformat(song['play_start_timestamp']).replace(tzinfo=timezone.utc)
@@ -163,7 +170,7 @@ def process_new_songs(pipeline_inst: pipeline.TrackPipeline, processed_tracks_ca
             current_ts = int(datetime.now(timezone.utc).timestamp())
             scrobble_ts = min(calculated_ts, current_ts)
             
-            scrobble_result = lastfm_client.scrobble_track(track_name, artist_name, scrobble_ts)
+            scrobble_result = lastfm_client.scrobble_track(track_name, artist_name, scrobble_ts, album_name)
             update_song_scrobble_status(song['request_id'], 'scrobbled' if scrobble_result else 'failed')
         else:
             log.warning("No suitable track found to scrobble.")

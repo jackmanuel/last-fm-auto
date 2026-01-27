@@ -156,7 +156,43 @@ def search_track(track: str, artist: str | None = None) -> list | None:
         log.error("Failed to parse JSON from search API response.")
     return None
 
-def scrobble_track(track: str, artist: str, timestamp: int) -> dict | None:
+def get_track_info(track: str, artist: str) -> dict | None:
+    """Gets detailed track info from Last.fm, including album information."""
+    params = {
+        'method': 'track.getInfo',
+        'track': track,
+        'artist': artist,
+        'api_key': config.LAST_FM_API_KEY,
+        'autocorrect': '1',
+        'format': 'json'
+    }
+    try:
+        response = requests.get(config.LAST_FM_API_URL, params=params)
+        response.raise_for_status()
+        data = response.json()
+        
+        track_data = data.get('track', {})
+        if not track_data:
+            return None
+            
+        result = {
+            'name': track_data.get('name'),
+            'artist': track_data.get('artist', {}).get('name')
+        }
+        
+        # Extract album info if available
+        album_data = track_data.get('album')
+        if album_data:
+            result['album'] = album_data.get('title')
+        
+        return result
+    except requests.RequestException as e:
+        log.error(f"API request error during track.getInfo: {e}")
+    except json.JSONDecodeError:
+        log.error("Failed to parse JSON from track.getInfo API response.")
+    return None
+
+def scrobble_track(track: str, artist: str, timestamp: int, album: str | None = None) -> dict | None:
     """Scrobbles a track to Last.fm."""
     if not config.LAST_FM_SESSION_KEY:
         log.error("Cannot scrobble without a session key.")
@@ -170,6 +206,8 @@ def scrobble_track(track: str, artist: str, timestamp: int) -> dict | None:
         'api_key': config.LAST_FM_API_KEY,
         'sk': config.LAST_FM_SESSION_KEY,
     }
+    if album:
+        params['album'] = album
     params['api_sig'] = sign_request(params, config.LAST_FM_API_SECRET)
     params['format'] = 'json'
     
@@ -182,7 +220,8 @@ def scrobble_track(track: str, artist: str, timestamp: int) -> dict | None:
             log.error(f"Scrobble failed: {response_data['message']} (Code: {response_data['error']})")
             return None
         
-        log.info(f"Successfully scrobbled '{track}' by {artist}.")
+        album_info = f" from '{album}'" if album else ""
+        log.info(f"Successfully scrobbled '{track}' by {artist}{album_info}.")
         return response_data
     except requests.RequestException as e:
         log.error(f"API request error while scrobbling: {e}")
@@ -191,7 +230,7 @@ def scrobble_track(track: str, artist: str, timestamp: int) -> dict | None:
     return None
 
 
-def update_now_playing(artist: str, track: str) -> dict | None:
+def update_now_playing(artist: str, track: str, album: str | None = None) -> dict | None:
     """Updates the 'Now Playing' status on Last.fm."""
     if not config.LAST_FM_SESSION_KEY:
         log.error("Cannot update 'Now Playing' without a session key.")
@@ -204,6 +243,8 @@ def update_now_playing(artist: str, track: str) -> dict | None:
         'api_key': config.LAST_FM_API_KEY,
         'sk': config.LAST_FM_SESSION_KEY
     }
+    if album:
+        params['album'] = album
 
     params['api_sig'] = sign_request(params, config.LAST_FM_API_SECRET)
     params['format'] = 'json'

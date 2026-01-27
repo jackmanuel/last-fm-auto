@@ -92,6 +92,11 @@ class TrackPipeline:
 
             if best_track:
                 log.info(f"Found best match: '{best_track['name']}' with a score of {max_score:.3f}")
+                # Fetch album info from track.getInfo
+                track_info = lastfm_client.get_track_info(best_track['name'], best_track['artist'])
+                if track_info and track_info.get('album'):
+                    best_track['album'] = track_info['album']
+                    log.info(f"Found album: '{best_track['album']}'")
                 return best_track
 
             return None

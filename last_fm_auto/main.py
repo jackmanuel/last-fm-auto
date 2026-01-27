@@ -16,7 +16,7 @@ from . import preprocessing
 from .logger import log
 
 # Load the searchable tracks once when the module is initialized
-searchable_tracks_data = preprocessing._load_json_dict(config.LOCAL_TRACKS_FILE, "Searchable Tracks")
+searchable_tracks_data = preprocessing._load_json_list(config.LOCAL_TRACKS_FILE, "Searchable Tracks")
 SEARCHABLE_TRACKS: List[Dict[Any, Any]] = searchable_tracks_data if isinstance(searchable_tracks_data, list) else []
 
 # --- Database Interaction ---

@@ -15,6 +15,54 @@ import sys
 from last_fm_auto import config
 from last_fm_auto import preprocessing
 
+def _is_youtube_url(query: str) -> bool:
+    """
+    Detects if a query is a YouTube URL.
+    Returns True if the query contains youtube.com or youtu.be.
+    """
+    return 'youtube.com' in query.lower() or 'youtu.be' in query.lower()
+
+def _clean_query(query: str, expand_abbreviations: bool) -> str:
+    """Applies the same query cleaning used by the main matching pipeline."""
+    if pd.isna(query):
+        return ""
+
+    query = str(query)
+    if expand_abbreviations:
+        query = preprocessing.expand_abbreviations(query)
+    return preprocessing.clean_youtube_title(query)
+
+def _build_search_queries(original_query: str, resolved_title: str) -> list[str]:
+    """
+    Returns the ordered Last.fm search queries that match TrackPipeline.execute:
+    non-URL query first, then resolved YouTube title as a fallback; URL queries
+    use only the resolved title.
+    """
+    original_query = "" if pd.isna(original_query) else str(original_query)
+
+    cleaned_resolved_title = _clean_query(resolved_title, expand_abbreviations=False)
+    if _is_youtube_url(original_query):
+        return [cleaned_resolved_title] if cleaned_resolved_title else []
+
+    cleaned_query = _clean_query(original_query, expand_abbreviations=True)
+    queries = [cleaned_query] if cleaned_query else []
+
+    if cleaned_resolved_title and cleaned_resolved_title.lower() != cleaned_query.lower():
+        queries.append(cleaned_resolved_title)
+
+    return queries
+
+def _get_track_matches(results: dict) -> list:
+    """Extracts the trackmatches list from a raw Last.fm search response."""
+    tracks = results.get('results', {}).get('trackmatches', {}).get('track', [])
+    if isinstance(tracks, dict):
+        return [tracks]
+    return tracks
+
+def _has_track_matches(results: dict) -> bool:
+    """Returns True when the Last.fm response contains at least one track."""
+    return bool(_get_track_matches(results))
+
 def _fetch_raw_search_results(api_key: str, title: str) -> dict:
     """
     Searches the Last.fm API for a given title and returns the raw JSON response.
@@ -84,18 +132,26 @@ def main():
     for index, row in df.iterrows():
         query_id = row[args.id_column]
         original_query = row[args.query_column]
+        resolved_title = row['resolved_title']
 
-        is_youtube_url = 'youtube.com' in original_query or 'youtu.be' in original_query
-        if is_youtube_url:
-            # The query is a YouTube URL, use the resolved title instead
-            original_query = row['resolved_title']
+        search_queries = _build_search_queries(original_query, resolved_title)
+        if not search_queries:
+            print(f"Processing {index + 1}/{total_rows} (ID: {query_id}): Skipped, no search query available.")
+            all_results[str(query_id)] = {"error": "NoSearchQuery"}
+            continue
 
-        expanded_query = preprocessing.expand_abbreviations(str(original_query))
-        search_query = preprocessing.clean_youtube_title(expanded_query)
-        
-        print(f"Processing {index + 1}/{total_rows} (ID: {query_id}): Searching for '{search_query}'")
+        results = None
+        for attempt, search_query in enumerate(search_queries, start=1):
+            if attempt == 1:
+                print(f"Processing {index + 1}/{total_rows} (ID: {query_id}): Searching for '{search_query}'")
+            else:
+                print(f"Processing {index + 1}/{total_rows} (ID: {query_id}): No results, trying fallback '{search_query}'")
 
-        results = _fetch_raw_search_results(api_key, search_query)
+            results = _fetch_raw_search_results(api_key, search_query)
+            if _has_track_matches(results) or attempt == len(search_queries):
+                break
+            time.sleep(1)
+
         all_results[str(query_id)] = results
         
         # Be respectful to the API endpoint by waiting between requests

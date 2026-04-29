@@ -6,10 +6,11 @@ This directory contains scripts for evaluating and fine-tuning the track selecti
 
 - `ground_truth_data_vX.csv`: A manually annotated CSV file that serves as the "correct answer" key for our tests. It contains queries and their corresponding ground truth track and artist names.
 - `last_fm_search_results_XXXX.json`: A cached JSON file containing the raw Last.fm API search results for each query in the ground truth file. This prevents us from hitting the API repeatedly during tuning.
+- `data/splitting_ground_truth.json`: A manually annotated JSON file for artist/track splitting. Each record keeps the raw query and the expected split into `track` and canonical `artist`.
 
 ## Tuning Strategies
 
-There are two different scripts for tuning two distinct track selection strategies.
+There are two different scripts for tuning Last.fm search-result selection strategies, plus a separate evaluator for artist/track splitting.
 
 ### 1. Weighted Scoring Model (`tune_hyperparameters.py`)
 
@@ -32,6 +33,27 @@ This script tunes the classic, more rigid selection strategy.
   3.  From the final candidates, select the one with the most listeners.
 - **Tuning**: It finds the best `similarity_threshold` and `min_listener_count` to maximize the F1-score, which balances finding correct tracks and rejecting incorrect ones.
 - **When to Use**: This model is better if you want to enforce strict, non-negotiable rules for what constitutes a valid match.
+
+### 3. Artist/Track Splitting (`evaluate_splitting.py`)
+
+This script evaluates the query splitting step that runs before local matching or Last.fm API search.
+
+- **Logic**: It tries possible split points in a raw query, fuzzy-matches the possible artist portion against `data/artists.json`, and returns a structured `track`/`artist` pair when the best match clears the threshold.
+- **Ground Truth**: Use `data/splitting_ground_truth.json`. The `query` field should preserve the raw user query, while `artist` should use the canonical artist name expected from `data/artists.json`. Comparisons are case-insensitive.
+- **Preprocessing**: The evaluator expands abbreviations before testing, matching the production pipeline more closely.
+- **Performance**: Repeated fuzzy artist lookups are cached during the grid search. This does not change the scoring result; it only avoids doing the same expensive lookup for every parameter combination.
+
+Run it from the project root:
+
+```bash
+python -m evaluation.evaluate_splitting data/splitting_ground_truth.json
+```
+
+To add or extend the splitting ground truth from the playback database:
+
+```bash
+python -m evaluation.build_splitting_ground_truth --db-path "C:/path/to/database.db" --output-json data/splitting_ground_truth.json
+```
 
 ## How to Customize the Tuning
 
@@ -63,3 +85,4 @@ In both tuning scripts, you can easily modify the search space for the hyperpara
 
 - **`fetch_search_results.py`**: Run this script to populate the `last_fm_search_results_XXXX.json` file by calling the Last.fm API for every query in your ground truth CSV.
 - **`annotate_data.py`**: An interactive script to help you efficiently create your `ground_truth_data.csv` file by automating the process of running test queries and prompting you for the correct answer.
+- **`build_splitting_ground_truth.py`**: An interactive script for annotating non-YouTube text queries into expected track and canonical artist values for splitting evaluation.

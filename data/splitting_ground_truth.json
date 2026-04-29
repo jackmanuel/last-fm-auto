@@ -1,0 +1,822 @@
+[
+  {
+    "query": "wonderland kesha",
+    "track": "wonderland",
+    "artist": "Kesha"
+  },
+  {
+    "query": "the ballad of john and yoko",
+    "track": "the ballad of john and yoko",
+    "artist": null
+  },
+  {
+    "query": "all you need is love",
+    "track": "all you need is love",
+    "artist": null
+  },
+  {
+    "query": "all my loving",
+    "track": "all my loving",
+    "artist": null
+  },
+  {
+    "query": "tomorrow never knows",
+    "track": "tomorrow never knows",
+    "artist": null
+  },
+  {
+    "query": "the entertainer",
+    "track": "the entertainer",
+    "artist": null
+  },
+  {
+    "query": "crazy beautiful life",
+    "track": "crazy beautiful life",
+    "artist": null
+  },
+  {
+    "query": "fazers",
+    "track": "fazers",
+    "artist": null
+  },
+  {
+    "query": "I love you honeybear",
+    "track": "I love you honeybear",
+    "artist": null
+  },
+  {
+    "query": "machine gun slowdive",
+    "track": "machine gun",
+    "artist": "Slowdive"
+  },
+  {
+    "query": "sometimes mbv",
+    "track": "sometimes",
+    "artist": "my bloody valentine"
+  },
+  {
+    "query": "baby blue king krule",
+    "track": "baby blue",
+    "artist": "King Krule"
+  },
+  {
+    "query": "i feel fine",
+    "track": "i feel fine",
+    "artist": null
+  },
+  {
+    "query": "i will beeatles",
+    "track": "i will",
+    "artist": "The Beatles"
+  },
+  {
+    "query": "all I have to do",
+    "track": "all I have to do",
+    "artist": null
+  },
+  {
+    "query": "lean beef patty jpegmafia",
+    "track": "lean beef patty",
+    "artist": "JPEGMAFIA"
+  },
+  {
+    "query": "anthems yeule",
+    "track": "anthems",
+    "artist": "yeule"
+  },
+  {
+    "query": "glide lily chou chou",
+    "track": "glide",
+    "artist": "Lily Chou-Chou"
+  },
+  {
+    "query": "nasty majesty",
+    "track": "nasty majesty",
+    "artist": null
+  },
+  {
+    "query": "hate being sober",
+    "track": "hate being sober",
+    "artist": null
+  },
+  {
+    "query": "young and wild and free",
+    "track": "young and wild and free",
+    "artist": null
+  },
+  {
+    "query": "be quiet and drive deftones",
+    "track": "be quiet and drive",
+    "artist": "Deftones"
+  },
+  {
+    "query": "last escape fleshwater",
+    "track": "last escape",
+    "artist": "Fleshwater"
+  },
+  {
+    "query": "youre in love with me car seat headrest",
+    "track": "youre in love with me",
+    "artist": "Car Seat Headrest"
+  },
+  {
+    "query": "in my life",
+    "track": "in my life",
+    "artist": null
+  },
+  {
+    "query": "panic face emojy",
+    "track": "panic face emojy",
+    "artist": null
+  },
+  {
+    "query": "uber everywhere",
+    "track": "uber everywhere",
+    "artist": null
+  },
+  {
+    "query": "neighbourhood #1",
+    "track": "neighbourhood #1",
+    "artist": null
+  },
+  {
+    "query": "that's just the way I feel purple mountains",
+    "track": "that's just the way I feel",
+    "artist": "Purple Mountains"
+  },
+  {
+    "query": "sit next to me",
+    "track": "sit next to me",
+    "artist": null
+  },
+  {
+    "query": "shes so high",
+    "track": "shes so high",
+    "artist": null
+  },
+  {
+    "query": "glory of the snow clairo",
+    "track": "glory of the snow",
+    "artist": "Clairo"
+  },
+  {
+    "query": "bags",
+    "track": "bags",
+    "artist": null
+  },
+  {
+    "query": "rosemary deftones",
+    "track": "rosemary",
+    "artist": "Deftones"
+  },
+  {
+    "query": "julia beatles",
+    "track": "julia",
+    "artist": "The Beatles"
+  },
+  {
+    "query": "im so tired beatles",
+    "track": "im so tired",
+    "artist": "The Beatles"
+  },
+  {
+    "query": "yer blues beatles",
+    "track": "yer blues",
+    "artist": "The Beatles"
+  },
+  {
+    "query": "play be quiet and drive",
+    "track": "play be queit and drive",
+    "artist": null
+  },
+  {
+    "query": "be quiet and drive",
+    "track": "be quiet and drive",
+    "artist": null
+  },
+  {
+    "query": "from the start laufey",
+    "track": "from the start",
+    "artist": "Laufey"
+  },
+  {
+    "query": "read my mind killers",
+    "track": "read my mind",
+    "artist": "The Killers"
+  },
+  {
+    "query": "hollywise blacktop manhattan",
+    "track": "hollywise",
+    "artist": "Blacktop Manhattan"
+  },
+  {
+    "query": "truth or day garden state",
+    "track": "truth or day",
+    "artist": "Garden State"
+  },
+  {
+    "query": "hang em high",
+    "track": "hang em high",
+    "artist": null
+  },
+  {
+    "query": "still alive",
+    "track": "still alive",
+    "artist": null
+  },
+  {
+    "query": "thrasher neil young",
+    "track": "thrasher",
+    "artist": "Neil Young"
+  },
+  {
+    "query": "ill try anything once",
+    "track": "ill try anything once",
+    "artist": null
+  },
+  {
+    "query": "entombed deftones",
+    "track": "entombed",
+    "artist": "Deftones"
+  },
+  {
+    "query": "diamond eyes deftones",
+    "track": "diamond eyes",
+    "artist": "Deftones"
+  },
+  {
+    "query": "infinite source deftones",
+    "track": "infinite source",
+    "artist": "Deftones"
+  },
+  {
+    "query": "gentle girl subtle pride",
+    "track": "gentle girl",
+    "artist": "Subtle Pride"
+  },
+  {
+    "query": "TOURMALINE",
+    "track": "TOURMALINE",
+    "artist": null
+  },
+  {
+    "query": "veins earl",
+    "track": "veins",
+    "artist": "Earl Sweatshirt"
+  },
+  {
+    "query": "stutter marianas trench",
+    "track": "stutter",
+    "artist": "Marianas Trench"
+  },
+  {
+    "query": "cancer mcr",
+    "track": "cancer",
+    "artist": "My Chemical Romance"
+  },
+  {
+    "query": "its not a fashion statement",
+    "track": "its not a fashion statement",
+    "artist": null
+  },
+  {
+    "query": "to the end",
+    "track": "to the end",
+    "artist": null
+  },
+  {
+    "query": "pollo rico billy woods",
+    "track": "polly rico",
+    "artist": "billy woods"
+  },
+  {
+    "query": "cossack wedding billy woods",
+    "track": "cossack wedding",
+    "artist": "billy woods"
+  },
+  {
+    "query": "schism billy woods",
+    "track": "schism",
+    "artist": "billy woods"
+  },
+  {
+    "query": "not in over crystal castles",
+    "track": "not in over",
+    "artist": "crystal castles"
+  },
+  {
+    "query": "violent dreams",
+    "track": "violent dreams",
+    "artist": null
+  },
+  {
+    "query": "digital bath",
+    "track": "digital bath",
+    "artist": null
+  },
+  {
+    "query": "burfict",
+    "track": "burfict",
+    "artist": null
+  },
+  {
+    "query": "csirac ninjirachi",
+    "track": "csirac",
+    "artist": "Ninajirachi"
+  },
+  {
+    "query": "when the sun goes down",
+    "track": "when the sun goes down",
+    "artist": null
+  },
+  {
+    "query": "baddest joey valence",
+    "track": "baddest",
+    "artist": "Joey Valence"
+  },
+  {
+    "query": "meanie weatherday",
+    "track": "meanie",
+    "artist": "Weatherday"
+  },
+  {
+    "query": "kimochi warui",
+    "track": "kimochi warui",
+    "artist": null
+  },
+  {
+    "query": "lotion deftones",
+    "track": "lotion deftones",
+    "artist": null
+  },
+  {
+    "query": "forget her jeff buckley",
+    "track": "forget her",
+    "artist": "Jeff Buckley"
+  },
+  {
+    "query": "lover you should've come over",
+    "track": "lover you should've come over",
+    "artist": null
+  },
+  {
+    "query": "happy news for sadness",
+    "track": "happy news for sadness",
+    "artist": null
+  },
+  {
+    "query": "high to death",
+    "track": "high to death",
+    "artist": null
+  },
+  {
+    "query": "darkness and cold purple mountains",
+    "track": "darkness and cold",
+    "artist": "Purple Mountains"
+  },
+  {
+    "query": "ipod touch ninajirachi",
+    "track": "ipod touch",
+    "artist": "Ninajirachi"
+  },
+  {
+    "query": "blink frost children",
+    "track": "blink",
+    "artist": "Frost Children"
+  },
+  {
+    "query": "crown of love",
+    "track": "crown of love",
+    "artist": null
+  },
+  {
+    "query": "face dev lemons",
+    "track": "face",
+    "artist": "Dev Lemons"
+  },
+  {
+    "query": "cyberia lyr1",
+    "track": "cyberia lyr1",
+    "artist": null
+  },
+  {
+    "query": "mantra earl",
+    "track": "mantra",
+    "artist": "Earl Sweatshirt"
+  },
+  {
+    "query": "only love can break your heart",
+    "track": "only love can break your heart",
+    "artist": null
+  },
+  {
+    "query": "tell me why neil young",
+    "track": "tell me why",
+    "artist": "Neil Young"
+  },
+  {
+    "query": "until I collapse",
+    "track": "until I collapse",
+    "artist": null
+  },
+  {
+    "query": "brutal olivia",
+    "track": "brutal",
+    "artist": "Olivia Rodrigo"
+  },
+  {
+    "query": "knockin on heavens door",
+    "track": "knockin on heavens door",
+    "artist": null
+  },
+  {
+    "query": "Zap!",
+    "track": "Zap!",
+    "artist": null
+  },
+  {
+    "query": "zap! avalanches",
+    "track": "zap!",
+    "artist": "The Avalanches"
+  },
+  {
+    "query": "meet me in the bathroom",
+    "track": "meet me in the bathroom",
+    "artist": null
+  },
+  {
+    "query": "boombox lonely island",
+    "track": "boombox",
+    "artist": "The Lonely Island"
+  },
+  {
+    "query": "11th dimension",
+    "track": "11th dimension",
+    "artist": null
+  },
+  {
+    "query": "left and right in the dark",
+    "track": "left and right in the dark",
+    "artist": null
+  },
+  {
+    "query": "beautiful eminem",
+    "track": "beautiful",
+    "artist": "Eminem"
+  },
+  {
+    "query": "the needle and the damage done",
+    "track": "the needle and the damage done",
+    "artist": null
+  },
+  {
+    "query": "kathy's song",
+    "track": "kathy's song",
+    "artist": null
+  },
+  {
+    "query": "murder every1 u know femtanyl",
+    "track": "murder every1 u know",
+    "artist": "femtanyl"
+  },
+  {
+    "query": "NASTYWERKKKK!",
+    "track": "NASTYWERKKKK!",
+    "artist": null
+  },
+  {
+    "query": "same love",
+    "track": "same love",
+    "artist": null
+  },
+  {
+    "query": "make the money macklemore",
+    "track": "make the money",
+    "artist": "Macklemore"
+  },
+  {
+    "query": "gospel xxxtentacion",
+    "track": "gospel",
+    "artist": "XXXTENTACION"
+  },
+  {
+    "query": "walk on neil young",
+    "track": "walk on",
+    "artist": "Neil Young"
+  },
+  {
+    "query": "dig a pony",
+    "track": "dig a pony",
+    "artist": null
+  },
+  {
+    "query": "I've got a feeling",
+    "track": "I've got a feeling",
+    "artist": null
+  },
+  {
+    "query": "cupid twin version",
+    "track": "cupid twin version",
+    "artist": null
+  },
+  {
+    "query": "glow like dat",
+    "track": "glow like dat",
+    "artist": null
+  },
+  {
+    "query": "ambulance blues",
+    "track": "ambulance blues",
+    "artist": null
+  },
+  {
+    "query": "tonight's the night neil young",
+    "track": "tonight's the night",
+    "artist": "Neil Young"
+  },
+  {
+    "query": "hey ya outkast",
+    "track": "hey ya",
+    "artist": "Outkast"
+  },
+  {
+    "query": "call it fate call it karma",
+    "track": "call it fate call it karma",
+    "artist": null
+  },
+  {
+    "query": "i just had sex",
+    "track": "i just had sex",
+    "artist": null
+  },
+  {
+    "query": "lacy olivia rodrigo",
+    "track": "lacy",
+    "artist": "Olivia Rodrigo"
+  },
+  {
+    "query": "zaza mike",
+    "track": "zaza",
+    "artist": "Mike"
+  },
+  {
+    "query": "the end beatles",
+    "track": "the end",
+    "artist": "The Beatles"
+  },
+  {
+    "query": "you never give me your money",
+    "track": "you never give me your money",
+    "artist": null
+  },
+  {
+    "query": "the long one beatles",
+    "track": "the long one",
+    "artist": "The Beatles"
+  },
+  {
+    "query": "old money bitch",
+    "track": "old money bitch",
+    "artist": null
+  },
+  {
+    "query": "protect ya neck",
+    "track": "protect ya neck",
+    "artist": null
+  },
+  {
+    "query": "cream wu tang",
+    "track": "cream",
+    "artist": "Wu-Tang Clan"
+  },
+  {
+    "query": "when the sun goes down arctic monkeys",
+    "track": "when the sun goes down",
+    "artist": "Artic Monkeys"
+  },
+  {
+    "query": "everythings not lost",
+    "track": "everythings not lost",
+    "artist": null
+  },
+  {
+    "query": "stella was a diver and shes always down",
+    "track": "stella was a diver and shes always down",
+    "artist": null
+  },
+  {
+    "query": "rest my chemistry",
+    "track": "rest my chemistry",
+    "artist": null
+  },
+  {
+    "query": "no i in threesome",
+    "track": "no i in threesome",
+    "artist": null
+  },
+  {
+    "query": "halo cage the elephant",
+    "track": "halo",
+    "artist": "Cage The Elephant"
+  },
+  {
+    "query": "let down radiohead",
+    "track": "let down",
+    "artist": "Radiohead"
+  },
+  {
+    "query": "cherry waves",
+    "track": "cherry waves",
+    "artist": null
+  },
+  {
+    "query": "supersonic oasis",
+    "track": "supersonic",
+    "artist": "Oasis"
+  },
+  {
+    "query": "back against the wall cage the elephant",
+    "track": "back against the wall",
+    "artist": "Cage The Elephant"
+  },
+  {
+    "query": "hot n cold",
+    "track": "hot n cold",
+    "artist": null
+  },
+  {
+    "query": "everyone dies in their nightmares",
+    "track": "everyone dies in their nightmares",
+    "artist": null
+  },
+  {
+    "query": "ultimate denzel",
+    "track": "ultimate",
+    "artist": "Denzel Curry"
+  },
+  {
+    "query": "twistin lil ugly mane",
+    "track": "twistin",
+    "artist": "Lil Ugly Mane"
+  },
+  {
+    "query": "grim wiki",
+    "track": "grim",
+    "artist": "Wiki"
+  },
+  {
+    "query": "throw dem gunz",
+    "track": "throw dem gunz",
+    "artist": null
+  },
+  {
+    "query": "albuquerque neil young",
+    "track": "albuquerque",
+    "artist": "Neil Young"
+  },
+  {
+    "query": "world on a string neil young",
+    "track": "would on a string",
+    "artist": "Neil Young"
+  },
+  {
+    "query": "I will beatles",
+    "track": "I will",
+    "artist": "The Beatles"
+  },
+  {
+    "query": "empathy crystal castles",
+    "track": "empathy",
+    "artist": "Crystal Castles"
+  },
+  {
+    "query": "beast monster thing",
+    "track": "beast monster thing",
+    "artist": null
+  },
+  {
+    "query": "like a rolling stone",
+    "track": "like a rolling stone",
+    "artist": null
+  },
+  {
+    "query": "pretend alex g",
+    "track": "pretend",
+    "artist": "Alex G"
+  },
+  {
+    "query": "spread eagle cross the block",
+    "track": "spread eagle cross the block",
+    "artist": null
+  },
+  {
+    "query": "honey this mirror isn't big enough for the two of us",
+    "track": "honey this mirror isn't big enough for the two of us",
+    "artist": null
+  },
+  {
+    "query": "strangers ethel cain",
+    "track": "strangers",
+    "artist": "Ethel Cain"
+  },
+  {
+    "query": "double 07 alchemist",
+    "track": "double 07",
+    "artist": "The Alchemist"
+  },
+  {
+    "query": "feather nujabes",
+    "track": "feather",
+    "artist": "Nujabes"
+  },
+  {
+    "query": "asylum billy woods",
+    "track": "asylum",
+    "artist": "billy woods"
+  },
+  {
+    "query": "rap snitch knishes",
+    "track": "rap snitch knishes",
+    "artist": null
+  },
+  {
+    "query": "one beer mf doom",
+    "track": "one beer",
+    "artist": "MF DOOM"
+  },
+  {
+    "query": "ultraviolence",
+    "track": "ultraviolence",
+    "artist": null
+  },
+  {
+    "query": "brooklyn baby",
+    "track": "brooklyn baby",
+    "artist": null
+  },
+  {
+    "query": "pretty when you cry",
+    "track": "pretty when you cry",
+    "artist": null
+  },
+  {
+    "query": "adhd kendrick",
+    "track": "adhd",
+    "artist": "Kendrick Lamar"
+  },
+  {
+    "query": "comes a time",
+    "track": "comes a time",
+    "artist": null
+  },
+  {
+    "query": "tell me why",
+    "track": "tell me why",
+    "artist": null
+  },
+  {
+    "query": "tell me why Neil young",
+    "track": "tell me why",
+    "artist": "Neil Young"
+  },
+  {
+    "query": "party at a rich dudes house",
+    "track": "party at a rich dudes house",
+    "artist": null
+  },
+  {
+    "query": "romantic homicide",
+    "track": "romantic homicide",
+    "artist": null
+  },
+  {
+    "query": "warrior kesha",
+    "track": "warrior",
+    "artist": "Kesha"
+  },
+  {
+    "query": "not like us",
+    "track": "not like us",
+    "artist": null
+  },
+  {
+    "query": "always something cage the elephant",
+    "track": "always something",
+    "artist": "Cage The Elephant"
+  },
+  {
+    "query": "back against the wall",
+    "track": "back against the wall",
+    "artist": null
+  },
+  {
+    "query": "shake me down",
+    "track": "shake me down",
+    "artist": null
+  },
+  {
+    "query": "aberdeen cage the elephant",
+    "track": "aberdeen",
+    "artist": "Cage The Elephant"
+  }
+]

@@ -22,9 +22,45 @@ Any file that does not meet these requirements will be skipped.
 
 ## 2. Generated Files
 
+### `artists.json`
+
+This file is generated from the `Artist` column in the source CSV files:
+
+```bash
+python -m scripts.build_artist_list
+```
+
+The query splitting pipeline uses this list to detect artist names in raw text queries. Because source exports can contain collaboration-style artist strings, `scripts.build_artist_list` also reads the comma-artist curation files described below and removes explicitly rejected comma-containing names.
+
+### `known_comma_artists.json` and `rejected_comma_artists.json`
+
+These files are created by the interactive curation script:
+
+```bash
+python -m scripts.curate_comma_artists
+```
+
+The script presents every artist name containing a comma and lets you mark it as either a real canonical artist name or collaboration-style noise. This matters because real artists such as `Tyler, The Creator` and `Black Country, New Road` contain commas, while entries such as `Tyler, The Creator, DJ Drama` are usually not useful artist candidates for query splitting.
+
+Progress is saved after every answer, so the curation can be stopped and resumed.
+
 ### `local_tracks.json`
 
-This file is created when you run the `scripts/build_searchable_tracks.py` script. It serves as a local cache of tracks from your CSV files that contain apostrophes at the beginning or end of words in the title, since the last.fm search API is not capabale of finding these songs. The main pipeline uses this file to find matches for problematic queries instantly, avoiding unnecessary Last.fm API calls.
+This file is created when you run the `scripts/build_searchable_tracks.py` script. It serves as a local cache of tracks from your CSV files that contain apostrophes at the beginning or end of words in the title, since the Last.fm search API is not capable of finding these songs. The main pipeline uses this file to find matches for problematic queries instantly, avoiding unnecessary Last.fm API calls.
+
+### `splitting_ground_truth.json`
+
+This file is manually curated evaluation data for `evaluation/evaluate_splitting.py`. Each entry should preserve the raw input query and the expected split:
+
+```json
+{
+  "query": "sometimes mbv",
+  "track": "sometimes",
+  "artist": "my bloody valentine"
+}
+```
+
+The `query` field should stay raw, including abbreviations or misspellings. The `artist` field should use the canonical artist name expected from `artists.json`; comparison is case-insensitive in the evaluator.
 
 ## 3. Provided Files
 

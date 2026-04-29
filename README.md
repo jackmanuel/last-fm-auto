@@ -6,6 +6,7 @@ This project provides a sophisticated pipeline for automatically scrobbling trac
 
 *   **Advanced Title Cleaning**: A robust preprocessing pipeline that cleans and standardizes input queries.
 *   **Local Database Cache**: An optional local track database for instantly matching common/problematic tracks without hitting the Last.fm API.
+*   **Artist/Track Splitting**: A fuzzy matching step that can split queries like `track artist` into structured artist and track values before searching.
 *   **Intelligent API Searching**: A scoring model that balances string similarity and track popularity to find the best match.
 *   **Configurable Pipeline**: Easily tune weights, thresholds, and other parameters in the `config.py` file.
 *   **Comprehensive Evaluation Framework**: There are scripts to test, tune, and validate the accuracy of the matching algorithm.
@@ -19,9 +20,9 @@ This project provides a sophisticated pipeline for automatically scrobbling trac
     *   `preprocessing.py`: Handles all text cleaning and normalization.
     *   `lastfm_client.py`: Manages all communication with the Last.fm API.
     *   `config.py`: Central configuration for all pipeline parameters.
-*   `evaluation/`: Scripts for model tuning and accuracy evaluation.
-*   `scripts/`: Helper scripts for tasks like building the local track database.
-*   `data/`: Data files, such as the abbreviation list and local track database.
+*   `evaluation/`: Scripts for model tuning, splitting evaluation, and accuracy evaluation.
+*   `scripts/`: Helper scripts for tasks like building the local track database and curating artist data.
+*   `data/`: Data files, such as the abbreviation list, artist list, local track database, and evaluation ground truth.
 
 ## Setup and Installation
 
@@ -100,10 +101,39 @@ The primary way to run the application is by using the provided batch script. Th
 .\run_scrobbler.bat
 ```
 
+### Query Format Tips
+
+For plain text queries, the current artist/track splitter works best when users put the track first and the artist at the end:
+
+```text
+sometimes mbv
+i will beatles
+lean beef patty jpegmafia
+```
+
+Dash-separated queries are more flexible because the splitter checks both sides and uses whichever side looks more like an artist:
+
+```text
+The Beatles - I Will
+I Will - The Beatles
+```
+
+Artist-first plain text queries such as `beatles i will` are not currently handled as well. They may still work through the fallback Last.fm search, but `track artist` is the preferred format for best results.
+
 ### Helper Scripts
 
 These scripts are for development, testing, and data preparation. Because the project is installed as a package, you must run them with the `python -m` flag from the project's root directory.
 
+*   **Build the Artist List**:
+    Generate `data/artists.json` from the source CSV files. This is used by the query splitter to recognize artist names.
+    ```bash
+    python -m scripts.build_artist_list
+    ```
+*   **Curate Comma-Containing Artists**:
+    Review artist names that contain commas and mark whether they are real artist names or collaboration-style noise. The build script uses this curation when regenerating `data/artists.json`.
+    ```bash
+    python -m scripts.curate_comma_artists
+    ```
 *   **Build the Local Track Database (Optional)**:
     Generate a local searchable JSON file from your source CSVs. For details on the required CSV format, see `data/README.md`.
     ```bash
@@ -117,4 +147,9 @@ These scripts are for development, testing, and data preparation. Because the pr
 
 ## Evaluation and Tuning
 
-This project includes a powerful evaluation suite to fine-tune the track selection algorithm. For more details on the process and how to run the tuning scripts, see the `evaluation/README.md` file.
+This project includes an evaluation suite for two related parts of matching:
+
+*   tuning the weighted Last.fm search-result scorer, which balances string similarity and listener popularity;
+*   evaluating the pre-search artist/track splitter, which decides whether a raw query contains an artist name.
+
+For more details on the process and how to run the tuning scripts, see the `evaluation/README.md` file.

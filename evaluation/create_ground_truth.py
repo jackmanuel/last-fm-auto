@@ -27,7 +27,10 @@ def create_ground_truth_csv(db_path, csv_path):
         print(f"Error accessing the database at '{db_path}': {e}")
         return
 
-    youtube_queries = df[df["query"].apply(is_youtube_url)]
+    youtube_queries = df[df["query"].apply(is_youtube_url)].copy()
+    before_dedup = len(youtube_queries)
+    youtube_queries = youtube_queries.drop_duplicates(subset=["query"], keep="first")
+    removed_duplicates = before_dedup - len(youtube_queries)
 
     try:
         with open(csv_path, "w", newline="", encoding="utf-8") as csvfile:
@@ -36,6 +39,8 @@ def create_ground_truth_csv(db_path, csv_path):
             for index, row in youtube_queries.iterrows():
                 writer.writerow([row["request_id"], row["query"], row["resolved_title"], row["resolved_url"], "", ""])
         print(f"Ground truth data successfully written to '{csv_path}'")
+        if removed_duplicates:
+            print(f"Skipped {removed_duplicates} duplicate YouTube queries.")
     except IOError as e:
         print(f"Error writing to CSV file at '{csv_path}': {e}")
 

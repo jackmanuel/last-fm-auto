@@ -19,6 +19,7 @@ import numpy as np
 import argparse
 
 from last_fm_auto import preprocessing, pipeline, scoring, config
+from evaluation.annotate_data import ANNOTATED_STATUSES
 
 # --- Scoring Strategy Functions ---
 
@@ -39,8 +40,17 @@ def load_data(ground_truth_csv: str, search_results_json: str) -> tuple[pd.DataF
     except FileNotFoundError as e:
         print(f"Error: A required file was not found. Details: {e}")
         sys.exit(1)
+
+    if 'annotation_status' not in df.columns:
+        print("Error: Ground truth CSV must contain an 'annotation_status' column.")
+        sys.exit(1)
+
+    status = df['annotation_status'].astype(str).str.strip().str.lower()
+    annotated_df = df[status.isin(ANNOTATED_STATUSES)].copy()
+    ignored_count = len(df) - len(annotated_df)
+    print(f"Loaded {len(annotated_df)} annotated records for evaluation (ignored {ignored_count} incomplete records).")
     
-    return df, search_results
+    return annotated_df, search_results
 
 def evaluate_hyperparameters(df: pd.DataFrame, search_results: dict, w_sim: float, w_listeners: float, popularity_threshold: int, selection_function: callable) -> tuple[float, float, float, float, list]:
     """

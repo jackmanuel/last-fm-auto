@@ -3,7 +3,7 @@ import json
 import re
 import itertools
 from thefuzz import process
-from last_fm_auto.preprocessing import ARTIST_LIST, expand_abbreviations
+from last_fm_auto.preprocessing import ARTIST_LIST, DASH_SEPARATOR_PATTERN, expand_abbreviations
 
 _ARTIST_MATCH_CACHE = {}
 
@@ -18,7 +18,7 @@ def testable_split_artist_track(query, artist_list, threshold, length_ratio_thre
     if not artist_list:
         return {"artist": None, "track": query}
 
-    parts = re.split(r'\s+-\s+', query, maxsplit=1)
+    parts = re.split(DASH_SEPARATOR_PATTERN, query, maxsplit=1)
     if len(parts) == 2:
         part1, part2 = parts[0].strip(), parts[1].strip()
         match1, score1, *_ = extract_artist_match(part1, artist_list)

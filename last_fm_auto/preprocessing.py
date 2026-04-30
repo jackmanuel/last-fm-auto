@@ -44,6 +44,7 @@ def _load_json_list(file_path, description):
 # Load data at module level so it's only read from disk once.
 ABBREVIATION_MAP = _load_json_dict(config.ABBREVIATIONS_FILE, "Abbreviations")
 ARTIST_LIST = _load_json_list(config.DATA_DIR / "artists.json", "Artists")
+DASH_SEPARATOR_PATTERN = r'\s+[-\u2010\u2011\u2012\u2013\u2014\u2015\u2212\uFE58\uFE63\uFF0D]\s+'
 
 
 def expand_abbreviations(query: str) -> str:
@@ -80,7 +81,7 @@ def split_artist_track(query: str, artist_list: list, threshold: int = 80):
         return {"artist": None, "track": query}
 
     # 1. Handle "artist - track" or "track - artist"
-    parts = re.split(r'\s+-\s+', query, maxsplit=1)
+    parts = re.split(DASH_SEPARATOR_PATTERN, query, maxsplit=1)
     if len(parts) == 2:
         part1, part2 = parts[0].strip(), parts[1].strip()
         

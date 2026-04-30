@@ -53,6 +53,9 @@ logs/
 # Ignore generated output files from tuning.
 evaluation/data/*.txt
 
+# --- Local Notes ---
+notes.md
+
 # --- IDE / Editor Specific ---
 # Ignore settings specific to local development environments like VS Code.
 .vscode/

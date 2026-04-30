@@ -4,6 +4,16 @@ from last_fm_auto import preprocessing
 
 
 class SplitArtistTrackTests(unittest.TestCase):
+    def test_preserves_spacing_after_removed_parenthetical(self):
+        cleaned_title = preprocessing.clean_youtube_title(
+            "Nelly Furtado - Promiscuous (Official Music Video) ft. Timbaland"
+        )
+
+        self.assertEqual(
+            cleaned_title,
+            "Nelly Furtado - Promiscuous ft. Timbaland",
+        )
+
     def test_splits_youtube_title_with_en_dash_separator(self):
         cleaned_title = preprocessing.clean_youtube_title(
             "boygenius \u2013 Not Strong Enough (official music video)"

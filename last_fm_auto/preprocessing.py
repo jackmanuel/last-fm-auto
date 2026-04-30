@@ -67,7 +67,8 @@ def clean_youtube_title(title: str) -> str:
     
     # Remove patterns in brackets or parentheses
     pattern_string = r'\s*[\[(](' + '|'.join(junk_patterns) + r')[\])]\s*'
-    cleaned_title = re.sub(pattern_string, '', title, flags=re.IGNORECASE)
+    cleaned_title = re.sub(pattern_string, ' ', title, flags=re.IGNORECASE)
+    cleaned_title = re.sub(r'\s+', ' ', cleaned_title)
     
     return cleaned_title.strip()
 

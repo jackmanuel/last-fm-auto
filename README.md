@@ -7,6 +7,7 @@ This project provides a sophisticated pipeline for automatically scrobbling trac
 *   **Advanced Title Cleaning**: A robust preprocessing pipeline that cleans and standardizes input queries.
 *   **Local Database Cache**: An optional local track database for instantly matching common/problematic tracks without hitting the Last.fm API.
 *   **Artist/Track Splitting**: A fuzzy matching step that can split queries like `track artist` into structured artist and track values before searching.
+*   **YouTube Channel Artist Hints**: For YouTube URL requests, the pipeline can use the video's channel name as a strict artist hint when the resolved title does not already contain a clear artist signal.
 *   **Intelligent API Searching**: A scoring model that balances string similarity and track popularity to find the best match.
 *   **Configurable Pipeline**: Easily tune weights, thresholds, and other parameters in the `config.py` file.
 *   **Comprehensive Evaluation Framework**: There are scripts to test, tune, and validate the accuracy of the matching algorithm.
@@ -80,6 +81,7 @@ This project provides a sophisticated pipeline for automatically scrobbling trac
     | `request_id` | INTEGER | A unique identifier for the row. |
     | `query` | TEXT | The raw song title to be searched for (can be a YouTube Link). |
     | `resolved_title` | TEXT | The resolved title of the YouTube video returned. |
+    | `channel_name` | TEXT | The YouTube channel/uploader name. This can be null or empty, but the column must exist for the main scrobbler. |
     | `guild_id` | TEXT | The guild id of the server that should be scrobbled. |
     | `play_start_timestamp` | TEXT | The UTC timestamp when the song started playing (eg. 2024-11-01T17:02:49.765055). |
     | `duration` | INTEGER | The duration of the song in seconds. |
@@ -90,11 +92,13 @@ This project provides a sophisticated pipeline for automatically scrobbling trac
 
     While this project was developed to work with the [python-music-bot](https://github.com/jackmanuel/python-music-bot), it is designed to be data-source agnostic. Any application can use this scrobbler as long as it can populate a SQLite database with a `play_history` table that matches the schema described above.
 
+    For YouTube URL rows, `channel_name` is used only when it can be matched confidently to an artist in `data/artists.json`. If the value is missing, empty, noisy, ambiguous, or below the configured thresholds, the pipeline ignores it and falls back to the normal resolved-title matching strategies.
+
 ## Usage
 
 ### Running the Scrobbler
 
-The primary way to run the application is by using the provided batch script. This will start the main process that monitors the database for pending tracks. It will check the database for new entries every 30 seconds by default. 
+The primary way to run the application is by using the provided batch script. This will start the main process that monitors the database for pending tracks. It will check the database for new entries every 5 seconds by default.
 
 ```bash
 # From the project root directory
@@ -142,7 +146,11 @@ These scripts are for development, testing, and data preparation. Because the pr
 *   **Test a Single Query**:
     Test the entire pipeline with a single song title.
     ```bash
-    python -m scripts.test_query "Your Song Title Here"
+    python -m scripts.test_query --query "Your Song Title Here"
+    ```
+    To test YouTube URL fallback behaviour, include the resolved video title and, optionally, the uploader/channel name:
+    ```bash
+    python -m scripts.test_query --query "https://www.youtube.com/watch?v=example" --resolved-title "Song Title" --youtube-channel "Artist - Topic"
     ```
 
 ## Evaluation and Tuning

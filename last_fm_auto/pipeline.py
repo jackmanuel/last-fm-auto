@@ -103,6 +103,23 @@ class TrackPipeline:
         except Exception as e:
             log.error(f"API search failed for '{search_query}': {str(e)}")
             return None
+
+    def _try_artist_hint_match(self, track: str, artist: str, verbose: bool = True) -> Optional[Dict]:
+        """
+        Tries matching a track with an externally supplied artist hint.
+        The hint is treated as evidence, not as part of the raw title text.
+        """
+        log.info(f"Trying artist hint. Artist: '{artist}', Track: '{track}'")
+
+        local_match = self.find_match_in_local_db(
+            track=track,
+            artist=artist,
+            verbose=verbose
+        )
+        if local_match:
+            return local_match
+
+        return self._find_best_match_from_api(track=track, artist=artist)
         
     def _try_split_and_match(self, query: str, verbose: bool = True) -> Optional[Dict]:
         """
@@ -165,13 +182,39 @@ class TrackPipeline:
         log.info(f"Search with query failed.")
         return None
         
-    def execute(self, original_query: str, resolved_title: str, verbose: bool = True) -> Optional[Dict]:
+    def execute(
+        self,
+        original_query: str,
+        resolved_title: str,
+        youtube_channel: Optional[str] = None,
+        verbose: bool = True
+    ) -> Optional[Dict]:
         """
         Main pipeline entry point. Cleans inputs and tries multiple strategies
         to find the best possible track match.
         """
         # Check if the query is a YouTube URL
         is_youtube_url = self._is_youtube_url(original_query)
+
+        channel_artist_hint = None
+        if is_youtube_url and youtube_channel:
+            channel_match = preprocessing.match_youtube_channel_artist(
+                youtube_channel,
+                preprocessing.ARTIST_LIST
+            )
+            if channel_match.get("artist"):
+                channel_artist_hint = channel_match["artist"]
+                log.info(
+                    f"YouTube channel '{youtube_channel}' matched artist hint "
+                    f"'{channel_artist_hint}' (score: {channel_match['score']}, "
+                    f"runner-up: {channel_match['runner_up_score']})."
+                )
+            else:
+                log.info(
+                    f"YouTube channel '{youtube_channel}' did not produce a strong artist hint "
+                    f"(normalized: '{channel_match['normalized_channel']}', "
+                    f"score: {channel_match['score']}, runner-up: {channel_match['runner_up_score']})."
+                )
         
         # Always process the resolved title
         cleaned_resolved_title = preprocessing.clean_youtube_title(resolved_title)
@@ -200,11 +243,42 @@ class TrackPipeline:
                 log.info(f"Trying final fallback with resolved title: '{cleaned_resolved_title}'")
             else:
                 log.info(f"Using resolved title as primary query: '{cleaned_resolved_title}'")
+
+            if channel_artist_hint:
+                title_split = preprocessing.split_artist_track(cleaned_resolved_title, preprocessing.ARTIST_LIST)
+                if title_split.get("artist"):
+                    log.info(
+                        f"Resolved title already contains artist signal '{title_split['artist']}'. "
+                        "Trying normal title strategies first."
+                    )
+                else:
+                    match = self._try_artist_hint_match(
+                        track=cleaned_resolved_title,
+                        artist=channel_artist_hint,
+                        verbose=verbose
+                    )
+                    if match:
+                        return match
             
             # Try matching with the resolved title
             match = self._try_match_strategies(cleaned_resolved_title, verbose)
             if match:
                 return match
+
+            if channel_artist_hint:
+                title_split = preprocessing.split_artist_track(cleaned_resolved_title, preprocessing.ARTIST_LIST)
+                if title_split.get("artist") and not preprocessing.is_same_artist(title_split["artist"], channel_artist_hint):
+                    log.info(
+                        f"Normal title strategies failed. Trying YouTube channel artist hint "
+                        f"'{channel_artist_hint}' as a fallback."
+                    )
+                    match = self._try_artist_hint_match(
+                        track=title_split["track"],
+                        artist=channel_artist_hint,
+                        verbose=verbose
+                    )
+                    if match:
+                        return match
 
         log.warning(f"No suitable track found after trying all search strategies.")
         return None

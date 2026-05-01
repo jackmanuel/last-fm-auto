@@ -62,7 +62,7 @@ def _display_best_track(best_track):
     else:
         print("  Algorithm found no suitable match.")
 
-def annotate_ground_truth(csv_path, id_col, query_col, title_col, searchable_tracks_path):
+def annotate_ground_truth(csv_path, id_col, query_col, title_col, searchable_tracks_path, channel_col=None):
     """
     Iterates through a ground truth CSV, runs the internal matching pipeline,
     and prompts the user for manual annotation.
@@ -102,13 +102,18 @@ def annotate_ground_truth(csv_path, id_col, query_col, title_col, searchable_tra
             print(f"--- Annotating Record {row[id_col]} of {total_rows} ---")
             print(f"Query (from '{query_col}'):    {row[query_col]}")
             print(f"Resolved Title (from '{title_col}'): {row[title_col]}")
+            youtube_channel = None
+            if channel_col and channel_col in df.columns and pd.notna(row[channel_col]):
+                youtube_channel = str(row[channel_col])
+                print(f"YouTube Channel (from '{channel_col}'): {youtube_channel}")
             print("-" * 20)
 
             # --- Run the internal pipeline to get the algorithm's best guess ---
             print("\n--- Algorithm's Best Guess ---")
             best_track = track_pipeline.execute(
                 original_query=str(row[query_col]),
-                resolved_title=str(row[title_col])
+                resolved_title=str(row[title_col]),
+                youtube_channel=youtube_channel
             )
             _display_best_track(best_track)
             
@@ -188,6 +193,11 @@ if __name__ == '__main__':
         default=config.LOCAL_TRACKS_FILE,
         help="Path to the local searchable tracks JSON file."
     )
+    parser.add_argument(
+        "--channel-column",
+        default="youtube_channel",
+        help="Optional column containing the YouTube channel/uploader name."
+    )
     args = parser.parse_args()
         
     annotate_ground_truth(
@@ -195,5 +205,6 @@ if __name__ == '__main__':
         args.id_column,
         args.query_column,
         args.title_column,
-        args.searchable_tracks
+        args.searchable_tracks,
+        args.channel_column
     )

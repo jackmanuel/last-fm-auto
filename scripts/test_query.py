@@ -30,6 +30,11 @@ def main():
         type=str,
         help="The resolved title to use"
     )
+    parser.add_argument(
+        "--youtube-channel",
+        type=str,
+        help="The YouTube channel/uploader name to use as a strict artist hint"
+    )
     args = parser.parse_args()
 
     # Validate that at least one argument is provided
@@ -43,6 +48,8 @@ def main():
     print(f"--- Running Test Query ---")
     print(f"Input Query: \"{query}\"")
     print(f"Resolved Title: \"{resolved_title}\"")
+    if args.youtube_channel:
+        print(f"YouTube Channel: \"{args.youtube_channel}\"")
     print("-" * 26)
 
     # Load searchable tracks from the local JSON file
@@ -59,7 +66,8 @@ def main():
     # Execute the pipeline with the provided query and resolved title
     best_match = pipeline.execute(
         original_query=query,
-        resolved_title=resolved_title
+        resolved_title=resolved_title,
+        youtube_channel=args.youtube_channel
     )
 
     print("-" * 26)

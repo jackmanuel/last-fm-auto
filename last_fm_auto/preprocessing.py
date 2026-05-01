@@ -45,6 +45,39 @@ def _load_json_list(file_path, description):
 ABBREVIATION_MAP = _load_json_dict(config.ABBREVIATIONS_FILE, "Abbreviations")
 ARTIST_LIST = _load_json_list(config.DATA_DIR / "artists.json", "Artists")
 DASH_SEPARATOR_PATTERN = r'\s+[-\u2010\u2011\u2012\u2013\u2014\u2015\u2212\uFE58\uFE63\uFF0D]\s+'
+DASH_TOPIC_SUFFIX_PATTERN = re.compile(r'\s*[-\u2010-\u2015\u2212]\s*topic$', re.IGNORECASE)
+CHANNEL_WORD_SUFFIXES = (
+    "official artist channel",
+    "official youtube channel",
+    "official channel",
+    "official youtube",
+    "official",
+    "topic",
+)
+CHANNEL_WORD_PREFIXES = ("official",)
+COMPACT_CHANNEL_SUFFIXES = ("official", "vevo")
+NOISY_CHANNEL_WORDS = {
+    "archive",
+    "archives",
+    "channel",
+    "collection",
+    "collections",
+    "label",
+    "labels",
+    "music",
+    "playlist",
+    "playlists",
+    "production",
+    "productions",
+    "promo",
+    "promotion",
+    "promotions",
+    "radio",
+    "records",
+    "recordings",
+    "soundtrack",
+    "soundtracks",
+}
 
 
 def expand_abbreviations(query: str) -> str:
@@ -71,6 +104,130 @@ def clean_youtube_title(title: str) -> str:
     cleaned_title = re.sub(r'\s+', ' ', cleaned_title)
     
     return cleaned_title.strip()
+
+def _remove_word_suffix(value: str, suffix: str) -> str:
+    """Removes a case-insensitive trailing word suffix from a channel name."""
+    suffix_with_space = f" {suffix}"
+    if value.casefold().endswith(suffix_with_space):
+        return value[:-len(suffix_with_space)].strip()
+
+    return value
+
+def _remove_word_prefix(value: str, prefix: str) -> str:
+    """Removes a case-insensitive leading word prefix from a channel name."""
+    prefix_with_space = f"{prefix} "
+    if value.casefold().startswith(prefix_with_space):
+        return value[len(prefix_with_space):].strip()
+
+    return value
+
+def _remove_compact_suffix(value: str, suffix: str) -> str:
+    """Removes compact suffixes such as VEVO from names like AdeleVEVO."""
+    if value.casefold().endswith(suffix) and len(value) > len(suffix):
+        return value[:-len(suffix)].strip()
+
+    return value
+
+def _contains_noisy_channel_word(value: str) -> bool:
+    """Returns True when a channel name contains a word that often means uploader/label noise."""
+    words = set(re.findall(r"[a-z0-9']+", value.casefold()))
+    return bool(words & NOISY_CHANNEL_WORDS)
+
+def normalize_youtube_channel_name(channel_name: str) -> str:
+    """
+    Normalizes a YouTube channel name before trying to treat it as an artist hint.
+    """
+    if not channel_name:
+        return ""
+
+    normalized = str(channel_name).strip()
+    normalized = re.sub(r'^@+', '', normalized)
+    normalized = re.sub(r'\s+', ' ', normalized)
+
+    previous = None
+    while previous != normalized:
+        previous = normalized
+        normalized = DASH_TOPIC_SUFFIX_PATTERN.sub('', normalized).strip()
+
+        for prefix in CHANNEL_WORD_PREFIXES:
+            normalized = _remove_word_prefix(normalized, prefix)
+
+        for suffix in CHANNEL_WORD_SUFFIXES:
+            normalized = _remove_word_suffix(normalized, suffix)
+
+        for suffix in COMPACT_CHANNEL_SUFFIXES:
+            normalized = _remove_compact_suffix(normalized, suffix)
+
+    return normalized
+
+def _normalized_artist_text(value: str | None) -> str:
+    """Returns a simple normalized string for artist equality checks."""
+    if not value:
+        return ""
+
+    return re.sub(r'\s+', ' ', str(value).strip().lower())
+
+def is_same_artist(artist_a: str | None, artist_b: str | None) -> bool:
+    """Returns True if two artist strings normalize to the same value."""
+    return _normalized_artist_text(artist_a) == _normalized_artist_text(artist_b)
+
+def match_youtube_channel_artist(
+    channel_name: str,
+    artist_list: list,
+    threshold: int = config.YOUTUBE_CHANNEL_ARTIST_THRESHOLD,
+    margin: int = config.YOUTUBE_CHANNEL_ARTIST_MARGIN,
+) -> dict:
+    """
+    Strictly matches a YouTube channel name to a known artist.
+
+    Returns a dictionary with ``artist``, ``score``, and ``normalized_channel``.
+    If the match is not strong enough, ``artist`` is None.
+    """
+    normalized_channel = normalize_youtube_channel_name(channel_name)
+    no_match = {
+        "artist": None,
+        "score": 0,
+        "runner_up_score": 0,
+        "normalized_channel": normalized_channel,
+    }
+
+    if not normalized_channel or not artist_list:
+        return no_match
+
+    matches = process.extract(
+        normalized_channel,
+        artist_list,
+        scorer=fuzz.token_sort_ratio,
+        limit=2,
+    )
+    if not matches:
+        return no_match
+
+    best_artist, best_score, *_ = matches[0]
+    runner_up_score = matches[1][1] if len(matches) > 1 else 0
+    result = {
+        "artist": None,
+        "score": best_score,
+        "runner_up_score": runner_up_score,
+        "normalized_channel": normalized_channel,
+    }
+
+    normalized_channel_key = _normalized_artist_text(normalized_channel)
+    normalized_best_key = _normalized_artist_text(best_artist)
+    exact_match = normalized_channel_key == normalized_best_key
+
+    # Short/common names are too easy to hit accidentally in a large artist list.
+    if (len(normalized_channel_key) <= 4 or _contains_noisy_channel_word(normalized_channel)) and not exact_match:
+        return result
+
+    if best_score < threshold:
+        return result
+
+    if best_score < 100 and best_score - runner_up_score < margin:
+        return result
+
+    result["artist"] = best_artist
+    return result
 
 def split_artist_track(query: str, artist_list: list, threshold: int = 80):
     """

@@ -35,6 +35,35 @@ class SplitArtistTrackTests(unittest.TestCase):
                     {"artist": "boygenius", "track": "Not Strong Enough"},
                 )
 
+    def test_normalizes_youtube_channel_suffixes(self):
+        self.assertEqual(
+            preprocessing.normalize_youtube_channel_name("@boygenius - Topic"),
+            "boygenius",
+        )
+        self.assertEqual(
+            preprocessing.normalize_youtube_channel_name("AdeleVEVO"),
+            "Adele",
+        )
+        self.assertEqual(
+            preprocessing.normalize_youtube_channel_name("Official Arctic Monkeys"),
+            "Arctic Monkeys",
+        )
+        self.assertEqual(
+            preprocessing.normalize_youtube_channel_name("ModjoOfficial"),
+            "Modjo",
+        )
+
+    def test_strictly_matches_youtube_channel_to_artist(self):
+        self.assertEqual(
+            preprocessing.match_youtube_channel_artist("boygenius - Topic", ["boygenius", "Boys Noize"])["artist"],
+            "boygenius",
+        )
+
+    def test_rejects_noisy_youtube_channel_near_match(self):
+        self.assertIsNone(
+            preprocessing.match_youtube_channel_artist("Some Music Channel", ["Some Musician"])["artist"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

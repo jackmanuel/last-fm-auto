@@ -50,6 +50,10 @@ def update_song_scrobble_status(request_id: str, scrobble_status: str):
     except sqlite3.Error as e:
         log.error(f"Database error updating song scrobble_status for {request_id}: {e}")
 
+def get_youtube_channel(song: sqlite3.Row) -> str | None:
+    """Returns the YouTube channel name stored by python-music-bot."""
+    return str(song['channel_name']) if song['channel_name'] else None
+
 def get_playing_song(guild_id: str) -> sqlite3.Row | None:
     """Fetches the current 'playing' song for a specific guild from the database."""
     try:
@@ -90,7 +94,11 @@ def process_now_playing(pipeline_inst: pipeline.TrackPipeline, last_fm_now_playi
     # A new song is playing
     request_id = playing_song['request_id']
     log.info(f"--- New song detected, processing: {request_id} ---")
-    best_track = pipeline_inst.execute(playing_song['query'], playing_song['resolved_title'])
+    best_track = pipeline_inst.execute(
+        playing_song['query'],
+        playing_song['resolved_title'],
+        youtube_channel=get_youtube_channel(playing_song)
+    )
 
     # Cache the result, whether it's a valid track or None (a failure)
     processed_tracks_cache[request_id] = best_track
@@ -156,7 +164,11 @@ def process_new_songs(pipeline_inst: pipeline.TrackPipeline, processed_tracks_ca
         else:
             # Fallback for songs that weren't 'Now Playing' (e.g., from a backlog)
             log.info(f"No cache hit. Query: {song['query']}, Resolved Title: {song['resolved_title']}")
-            best_track = pipeline_inst.execute(song['query'], song['resolved_title'])
+            best_track = pipeline_inst.execute(
+                song['query'],
+                song['resolved_title'],
+                youtube_channel=get_youtube_channel(song)
+            )
             if best_track:
                 track_name = best_track.get('name')
                 artist_name = best_track.get('artist')

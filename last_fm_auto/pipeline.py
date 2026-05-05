@@ -181,6 +181,27 @@ class TrackPipeline:
         
         log.info(f"Search with query failed.")
         return None
+
+    def _prepare_non_url_queries(self, original_query: str) -> List[str]:
+        """
+        Returns cleaned non-URL query variants in the order they should be tried.
+        If the raw query already contains a recognizable artist, try it before
+        abbreviation expansion so artist names such as "Earl Sweatshirt" do not
+        get expanded into duplicated text.
+        """
+        cleaned_original_query = preprocessing.clean_youtube_title(original_query)
+        raw_split = preprocessing.split_artist_track(cleaned_original_query, preprocessing.ARTIST_LIST)
+
+        if raw_split.get("artist"):
+            return [cleaned_original_query]
+
+        expanded_query = preprocessing.expand_abbreviations(original_query)
+        cleaned_expanded_query = preprocessing.clean_youtube_title(expanded_query)
+
+        if cleaned_expanded_query.lower() == cleaned_original_query.lower():
+            return [cleaned_original_query]
+
+        return [cleaned_expanded_query]
         
     def execute(
         self,
@@ -222,22 +243,23 @@ class TrackPipeline:
         if is_youtube_url:
             log.info(f"Detected YouTube URL: '{original_query}'. Query will be skipped, using only resolved title.")
             # For YouTube URLs, we don't process the URL as a query
-            cleaned_query = None
+            cleaned_queries = []
         else:
             # Step 1: Pre-process inputs for non-URL queries
-            expanded_query = preprocessing.expand_abbreviations(original_query)
-            cleaned_query = preprocessing.clean_youtube_title(expanded_query)
+            cleaned_queries = self._prepare_non_url_queries(original_query)
 
         # Step 2: Try matching with the query (only if we have a non-URL query)
-        if cleaned_query:
+        for cleaned_query in cleaned_queries:
             match = self._try_match_strategies(cleaned_query, verbose)
             if match:
                 return match
-            
+
+        if cleaned_queries:
             log.info(f"Search with query failed, trying final fallback.")
         
         # Step 3: Final fallback to cleaned resolved YouTube title
         # Skip if the query was already the YouTube title (to avoid redundant searches)
+        cleaned_query = cleaned_queries[-1] if cleaned_queries else None
         if cleaned_resolved_title and (not cleaned_query or cleaned_resolved_title.lower() != cleaned_query.lower()):
             if cleaned_query:
                 log.info(f"Trying final fallback with resolved title: '{cleaned_resolved_title}'")

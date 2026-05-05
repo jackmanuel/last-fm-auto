@@ -28,5 +28,31 @@ class TrackPipelineYouTubeChannelTests(unittest.TestCase):
         self.assertEqual(match, {"name": "Darkness", "artist": "Known Artist"})
 
 
+class TrackPipelineQueryPreparationTests(unittest.TestCase):
+    def test_preserves_query_when_raw_artist_match_exists_before_abbreviation(self):
+        original_artist_list = preprocessing.ARTIST_LIST
+        preprocessing.ARTIST_LIST = ["Earl Sweatshirt"]
+        try:
+            pipeline = TrackPipeline.from_default_config(searchable_tracks=[])
+
+            queries = pipeline._prepare_non_url_queries("couch earl sweatshirt")
+        finally:
+            preprocessing.ARTIST_LIST = original_artist_list
+
+        self.assertEqual(queries, ["couch earl sweatshirt"])
+
+    def test_expands_abbreviation_when_raw_artist_match_is_missing(self):
+        original_artist_list = preprocessing.ARTIST_LIST
+        preprocessing.ARTIST_LIST = ["Earl Sweatshirt"]
+        try:
+            pipeline = TrackPipeline.from_default_config(searchable_tracks=[])
+
+            queries = pipeline._prepare_non_url_queries("veins earl")
+        finally:
+            preprocessing.ARTIST_LIST = original_artist_list
+
+        self.assertEqual(queries, ["veins Earl Sweatshirt"])
+
+
 if __name__ == "__main__":
     unittest.main()

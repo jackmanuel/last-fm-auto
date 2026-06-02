@@ -25,6 +25,7 @@ This project provides a sophisticated pipeline for automatically scrobbling trac
 *   `scripts/`: Helper scripts for tasks like building the local track database and curating artist data.
 *   `data/`: Data files, such as the abbreviation list, artist list, local track database, and evaluation ground truth.
 
+
 ## Setup and Installation
 
 **Note:** It is highly recommended to use a Python virtual environment.
@@ -41,7 +42,12 @@ This project provides a sophisticated pipeline for automatically scrobbling trac
     ```
 3.  **Configure Environment and Database**:
     
-    First, create a `.env` file in the root directory. Edit the `.env` file with your credentials and path to your database.
+    Copy `.env.example` to a new file named `.env` in the root directory:
+    ```bash
+    cp .env.example .env
+    ```
+    
+    Edit the `.env` file with your credentials and path to your database.
     ```
     LAST_FM_API_KEY="your_api_key"
     LAST_FM_API_SECRET="your_api_secret"
@@ -49,6 +55,7 @@ This project provides a sophisticated pipeline for automatically scrobbling trac
     DATABASE_PATH="C:/path/to/your/database.db"
     GUILD_ID="your_discord_guild_id"
     ```
+
     
     **Setting Up Last.fm Session Key**
 
@@ -82,15 +89,26 @@ This project provides a sophisticated pipeline for automatically scrobbling trac
     | `query` | TEXT | The raw song title to be searched for (can be a YouTube Link). |
     | `resolved_title` | TEXT | The resolved title of the YouTube video returned. |
     | `channel_name` | TEXT | The YouTube channel/uploader name. This can be null or empty, but the column must exist for the main scrobbler. |
-    | `guild_id` | TEXT | The guild id of the server that should be scrobbled. |
-    | `play_start_timestamp` | TEXT | The UTC timestamp when the song started playing (eg. 2024-11-01T17:02:49.765055). |
+    | `guild_id` | TEXT | The guild ID of the server that should be scrobbled. |
+    | `play_start_timestamp` | TEXT | The UTC timestamp when the song started playing (e.g., 2024-11-01T17:02:49.765055). |
     | `duration` | INTEGER | The duration of the song in seconds. |
-    | `play_status` | TEXT | The playback status. This is either `playing` or `completed`. |
-    | `scrobble_status` | TEXT | The scrobble processing status. This is either `new`, `scrobbled`, or `failed`. |
+    | `play_status` | TEXT | The playback status. Supported values: `queued`, `playing`, `completed`, `skipped`. |
+    | `scrobble_status` | TEXT | The scrobble processing status. Supported values: `new`, `scrobbled`, `failed`. |
+
+    **Additional Columns (Optional)**
+
+    If you are integrating with [python-music-bot](https://github.com/jackmanuel/python-music-bot), the database schema will contain the following columns which are ignored by the scrobbler but required by the bot:
+    
+    | Column Name | Data Type | Description |
+    | :--- | :--- | :--- |
+    | `request_timestamp` | TEXT | The UTC timestamp when the playback request was made. |
+    | `user_id` | TEXT | The Discord user ID of the requesting user. |
+    | `user_name` | TEXT | The Discord username of the requesting user. |
+    | `resolved_url` | TEXT | The resolved video or stream URL. |
 
     **Integration Flexibility**
 
-    While this project was developed to work with the [python-music-bot](https://github.com/jackmanuel/python-music-bot), it is designed to be data-source agnostic. Any application can use this scrobbler as long as it can populate a SQLite database with a `play_history` table that matches the schema described above.
+    While this project was developed to work with the [python-music-bot](https://github.com/jackmanuel/python-music-bot), it is designed to be data-source agnostic. Any application can use this scrobbler as long as it can populate a SQLite database with a `play_history` table that matches the required columns described above.
 
     For YouTube URL rows, `channel_name` is used only when it can be matched confidently to an artist in `data/artists.json`. If the value is missing, empty, noisy, ambiguous, or below the configured thresholds, the pipeline ignores it and falls back to the normal resolved-title matching strategies.
 

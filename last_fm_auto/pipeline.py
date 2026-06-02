@@ -1,3 +1,7 @@
+# last_fm_auto/pipeline.py
+"""
+Orchestrates the track matching pipeline, coordinating local and remote search strategies.
+"""
 from typing import Optional, Dict, List
 from thefuzz import fuzz
 from . import lastfm_client
@@ -214,7 +218,6 @@ class TrackPipeline:
         Main pipeline entry point. Cleans inputs and tries multiple strategies
         to find the best possible track match.
         """
-        # Check if the query is a YouTube URL
         is_youtube_url = self._is_youtube_url(original_query)
 
         channel_artist_hint = None
@@ -237,12 +240,10 @@ class TrackPipeline:
                     f"score: {channel_match['score']}, runner-up: {channel_match['runner_up_score']})."
                 )
         
-        # Always process the resolved title
         cleaned_resolved_title = preprocessing.clean_youtube_title(resolved_title)
         
         if is_youtube_url:
             log.info(f"Detected YouTube URL: '{original_query}'. Query will be skipped, using only resolved title.")
-            # For YouTube URLs, we don't process the URL as a query
             cleaned_queries = []
         else:
             # Step 1: Pre-process inputs for non-URL queries
@@ -282,7 +283,6 @@ class TrackPipeline:
                     if match:
                         return match
             
-            # Try matching with the resolved title
             match = self._try_match_strategies(cleaned_resolved_title, verbose)
             if match:
                 return match

@@ -1,3 +1,7 @@
+# scripts/build_searchable_tracks.py
+"""
+Utility script to scan CSV datasets and compile a JSON index of songs containing apostrophes.
+"""
 import pandas as pd
 import json
 import os
@@ -26,7 +30,6 @@ def build_searchable_tracks(csv_paths, json_path):
             print("Operation cancelled. Nothing to do.")
             return
 
-    # If cache doesn't exist, generate from the list of CSVs
     print(f"Output file not found or approved for overwrite. Generating new data from source CSVs...")
     
     list_of_dfs = []

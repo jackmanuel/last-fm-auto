@@ -1,3 +1,7 @@
+# scripts/add_local_track.py
+"""
+Utility script to manually add a new track to the local tracks file.
+"""
 import argparse
 import json
 from pathlib import Path
@@ -6,7 +10,6 @@ def add_local_track(track_name, artist_name):
     """
     Adds a new track to the local_tracks.json file.
     """
-    # Construct the path to data/local_tracks.json relative to this script
     file_path = Path(__file__).parent.parent / "data" / "local_tracks.json"
 
     try:

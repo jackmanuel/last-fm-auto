@@ -8,28 +8,17 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 # --- Project Paths ---
-# Defines the absolute path to the project's root directory
 PROJECT_ROOT = Path(__file__).parent.parent
 
 # --- Logging Configuration ---
-# Define the logs directory relative to the project root.
 LOG_DIR = PROJECT_ROOT / "logs"
-
-# Create the logs directory if it doesn't exist.
-# The `exist_ok=True` argument prevents an error from being raised if the directory already exists.
 LOG_DIR.mkdir(exist_ok=True)
 
-# Load environment variables from a .env file
 ENV_PATH = PROJECT_ROOT / ".env"
 load_dotenv(dotenv_path=ENV_PATH)
 
 # --- Database Configuration ---
-db_path_from_env = os.getenv('DATABASE_PATH')
-if not db_path_from_env:
-    raise ValueError("DATABASE_PATH not found in .env file.")
-
-DB_FILE: str = db_path_from_env
-
+DB_FILE = os.getenv('DATABASE_PATH')
 DB_TIMEOUT = 20.0
 
 # --- Data File Paths ---
@@ -42,22 +31,37 @@ LAST_FM_API_KEY = os.getenv('LAST_FM_API_KEY')
 LAST_FM_API_SECRET = os.getenv('LAST_FM_API_SECRET')
 LAST_FM_SESSION_KEY = os.getenv('LAST_FM_SESSION_KEY')
 
-if not all([LAST_FM_API_KEY, LAST_FM_API_SECRET]):
-    raise ValueError("API Key or Secret not found in .env file.")
-# Session key is optional at startup, required for scrobbling.
-
 LAST_FM_API_URL = "http://ws.audioscrobbler.com/2.0/"
 LAST_FM_SEARCH_LIMIT = 10
 
 # --- Application Logic ---
 GUILD_ID = os.getenv('GUILD_ID')
-if not GUILD_ID:
-    raise ValueError("GUILD_ID not found in .env file.")
-
 DEBUG_MODE = os.getenv('DEBUG_MODE', 'False').lower() == 'true'
 
+def validate_config(require_session_key=False):
+    """
+    Validates that all required configuration values are set in the environment.
+    Raises ValueError with a descriptive message listing any missing configurations.
+    """
+    missing_vars = []
+    if not DB_FILE:
+        missing_vars.append("DATABASE_PATH")
+    if not LAST_FM_API_KEY:
+        missing_vars.append("LAST_FM_API_KEY")
+    if not LAST_FM_API_SECRET:
+        missing_vars.append("LAST_FM_API_SECRET")
+    if not GUILD_ID:
+        missing_vars.append("GUILD_ID")
+    if require_session_key and not LAST_FM_SESSION_KEY:
+        missing_vars.append("LAST_FM_SESSION_KEY")
+
+    if missing_vars:
+        msg = f"Missing required configuration variables in .env file: {', '.join(missing_vars)}."
+        if "LAST_FM_SESSION_KEY" in missing_vars:
+            msg += " Run authentication using `python -m last_fm_auto.main --authenticate` first."
+        raise ValueError(msg)
+
 # --- Scoring Model Weights ---
-# Centralize weights here so they can be easily tuned.
 WEIGHT_SIMILARITY = 0.6
 WEIGHT_POPULARITY = 0.4
 POPULARITY_THRESHOLD = 300

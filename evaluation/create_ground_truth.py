@@ -1,4 +1,7 @@
-
+# evaluation/create_ground_truth.py
+"""
+Utility script to generate an initial ground truth CSV file by extracting YouTube queries from database history.
+"""
 import sqlite3
 import csv
 import pandas as pd

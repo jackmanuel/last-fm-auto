@@ -136,6 +136,10 @@ def authenticate():
 
 def search_track(track: str, artist: str | None = None) -> list | None:
     """Searches Last.fm API, parses the JSON, and returns the list of tracks."""
+    if not config.LAST_FM_API_KEY:
+        log.error("LAST_FM_API_KEY is not set. Cannot search Last.fm API.")
+        return None
+
     params = {
         'method': 'track.search',
         'track': track,
@@ -158,6 +162,10 @@ def search_track(track: str, artist: str | None = None) -> list | None:
 
 def get_track_info(track: str, artist: str) -> dict | None:
     """Gets detailed track info from Last.fm, including album information."""
+    if not config.LAST_FM_API_KEY:
+        log.error("LAST_FM_API_KEY is not set. Cannot get track info from Last.fm API.")
+        return None
+
     params = {
         'method': 'track.getInfo',
         'track': track,
@@ -194,8 +202,8 @@ def get_track_info(track: str, artist: str) -> dict | None:
 
 def scrobble_track(track: str, artist: str, timestamp: int, album: str | None = None) -> dict | None:
     """Scrobbles a track to Last.fm."""
-    if not config.LAST_FM_SESSION_KEY:
-        log.error("Cannot scrobble without a session key.")
+    if not all([config.LAST_FM_API_KEY, config.LAST_FM_API_SECRET, config.LAST_FM_SESSION_KEY]):
+        log.error("Cannot scrobble: Last.fm API Key, Secret, or Session Key is missing.")
         return None
 
     params = {
@@ -232,8 +240,8 @@ def scrobble_track(track: str, artist: str, timestamp: int, album: str | None = 
 
 def update_now_playing(artist: str, track: str, album: str | None = None) -> dict | None:
     """Updates the 'Now Playing' status on Last.fm."""
-    if not config.LAST_FM_SESSION_KEY:
-        log.error("Cannot update 'Now Playing' without a session key.")
+    if not all([config.LAST_FM_API_KEY, config.LAST_FM_API_SECRET, config.LAST_FM_SESSION_KEY]):
+        log.error("Cannot update 'Now Playing': Last.fm API Key, Secret, or Session Key is missing.")
         return None
 
     params = {

@@ -85,7 +85,6 @@ def evaluate_strategy(df: pd.DataFrame, search_results: dict, sim_threshold: int
             else: # Model correctly predicted nothing
                 true_negatives += 1
 
-    # Calculate metrics
     total_samples = len(df)
     precision = true_positives / (true_positives + false_positives) if (true_positives + false_positives) > 0 else 0
     recall = true_positives / (true_positives + false_negatives) if (true_positives + false_negatives) > 0 else 0
@@ -104,7 +103,6 @@ def main():
     df, search_results = load_data(args.ground_truth, args.search_results)
     print(f"Loaded {len(df)} records for evaluation (including null ground truths).")
 
-    # Pre-process and filter data
     df['cleaned_query'] = df['resolved_title'].apply(lambda q: preprocessing.clean_youtube_title(str(q)))
     df['has_local_match'] = df['cleaned_query'].apply(lambda q: pipeline.TrackPipeline.from_default_config([]).find_match_in_local_db(q, verbose=False) is not None)
     
@@ -112,7 +110,6 @@ def main():
     print(f"Skipping {len(df) - len(filtered_df)} queries with a local DB match.")
     print(f"Starting tuning with {len(filtered_df)} records.")
 
-    # Define the hyperparameter grid
     similarity_thresholds = range(50, 101, 5)
     listener_counts = [0, 10, 20, 30, 50, 75, 100, 500, 1000, 2000, 5000, 10000, 20000]
     

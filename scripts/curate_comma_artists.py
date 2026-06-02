@@ -1,3 +1,7 @@
+# scripts/curate_comma_artists.py
+"""
+Utility script to interactively curate artist names containing commas.
+"""
 import argparse
 import csv
 import json

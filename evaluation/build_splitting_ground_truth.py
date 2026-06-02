@@ -1,3 +1,7 @@
+# evaluation/build_splitting_ground_truth.py
+"""
+Utility script to interactively build ground truth splitting records from SQLite databases.
+"""
 import argparse
 import json
 import os

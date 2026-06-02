@@ -113,7 +113,6 @@ def main():
     selection_function = STRATEGY_MAP[args.strategy]
     df, search_results = load_data(args.ground_truth, args.search_results)
 
-    # Load searchable tracks for local matching
     try:
         with open(args.searchable_tracks, 'r', encoding='utf-8') as f:
             searchable_tracks = json.load(f)
@@ -121,7 +120,6 @@ def main():
         print(f"Error: searchable_tracks.json not found at {args.searchable_tracks}")
         sys.exit(1)
 
-    # Instantiate the pipeline once
     track_pipeline = pipeline.TrackPipeline.from_default_config(searchable_tracks)
     
     # Use resolved_title for YouTube links, otherwise use the original query

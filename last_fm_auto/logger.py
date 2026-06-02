@@ -1,3 +1,7 @@
+# last_fm_auto/logger.py
+"""
+Sets up logging handlers and formatting for the application.
+"""
 import logging
 import logging.handlers
 import os

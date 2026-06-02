@@ -1,3 +1,7 @@
+# evaluation/evaluate_splitting.py
+"""
+Utility script to evaluate and grid search optimal hyperparameters for splitting artist and track names.
+"""
 import argparse
 import json
 import re

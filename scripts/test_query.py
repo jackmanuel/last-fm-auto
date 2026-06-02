@@ -37,11 +37,9 @@ def main():
     )
     args = parser.parse_args()
 
-    # Validate that at least one argument is provided
     if not args.query and not args.resolved_title:
         parser.error("At least one of --query or --resolved-title must be provided")
 
-    # Use the provided values or fall back to the other if one is missing
     query = args.query if args.query else args.resolved_title
     resolved_title = args.resolved_title if args.resolved_title else args.query
 
@@ -52,7 +50,6 @@ def main():
         print(f"YouTube Channel: \"{args.youtube_channel}\"")
     print("-" * 26)
 
-    # Load searchable tracks from the local JSON file
     try:
         with open(config.LOCAL_TRACKS_FILE, 'r', encoding='utf-8') as f:
             searchable_tracks = json.load(f)
@@ -60,16 +57,13 @@ def main():
         print(f"Error loading searchable tracks: {e}")
         sys.exit(1)
 
-    # Instantiate the pipeline using the default configuration
     pipeline = TrackPipeline.from_default_config(searchable_tracks=searchable_tracks)
 
-    # Execute the pipeline with the provided query and resolved title
     best_match = pipeline.execute(
         original_query=query,
         resolved_title=resolved_title,
         youtube_channel=args.youtube_channel
     )
-
     print("-" * 26)
     print("--- Final Result ---")
     if best_match:

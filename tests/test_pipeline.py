@@ -1,3 +1,7 @@
+# tests/test_pipeline.py
+"""
+Unit tests for the TrackPipeline class and its matching strategies.
+"""
 import unittest
 
 from last_fm_auto import preprocessing

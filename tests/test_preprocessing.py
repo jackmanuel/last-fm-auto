@@ -1,3 +1,7 @@
+# tests/test_preprocessing.py
+"""
+Unit tests for text preprocessing, cleaning, and splitting utilities.
+"""
 import unittest
 
 from last_fm_auto import preprocessing

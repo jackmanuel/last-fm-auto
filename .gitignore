@@ -55,6 +55,7 @@ evaluation/data/*.txt
 
 # --- Local Notes ---
 notes.md
+commit.txt
 
 # --- IDE / Editor Specific ---
 # Ignore settings specific to local development environments like VS Code.

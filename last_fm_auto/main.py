@@ -65,6 +65,7 @@ def get_playing_song(guild_id: str) -> sqlite3.Row | None:
             (guild_id,)
         )
         song = cursor.fetchone()
+
         conn.close()
         return song
     except sqlite3.Error as e:
@@ -82,16 +83,12 @@ def process_now_playing(pipeline_inst: pipeline.TrackPipeline, last_fm_now_playi
         return last_fm_now_playing_track
         
     playing_song = get_playing_song(config.GUILD_ID)
-
-    # If no song is playing, there's nothing to do.
     if not playing_song:
         return last_fm_now_playing_track
 
-    # If the currently playing song is the same as the one we last reported, do nothing.
     if last_fm_now_playing_track and last_fm_now_playing_track.get('request_id') == playing_song['request_id']:
         return last_fm_now_playing_track
 
-    # A new song is playing
     request_id = playing_song['request_id']
     log.info(f"--- New song detected, processing: {request_id} ---")
     best_track = pipeline_inst.execute(
@@ -100,12 +97,9 @@ def process_now_playing(pipeline_inst: pipeline.TrackPipeline, last_fm_now_playi
         youtube_channel=get_youtube_channel(playing_song)
     )
 
-    # Cache the result, whether it's a valid track or None (a failure)
     processed_tracks_cache[request_id] = best_track
     log.info(f"Cached processed info for request_id: {request_id}")
 
-    # This object is used to check if the 'playing' song has changed.
-    # We create it even if the track lookup failed, to prevent reprocessing.
     updated_track_info = {
         'request_id': request_id,
         'name': best_track.get('name') if best_track else None,
@@ -114,7 +108,6 @@ def process_now_playing(pipeline_inst: pipeline.TrackPipeline, last_fm_now_playi
     }
 
     if best_track:
-        # Update Last.fm 'Now Playing' only if we found a valid track
         lastfm_client.update_now_playing(
             updated_track_info['artist'],
             updated_track_info['name'],
@@ -147,22 +140,19 @@ def process_new_songs(pipeline_inst: pipeline.TrackPipeline, processed_tracks_ca
         
         track_name, artist_name, album_name = None, None, None
 
-        # Optimization: Check if the track has already been processed and is in our cache.
         if request_id in processed_tracks_cache:
             log.info(f"Using cached info for scrobbling request_id: {request_id}")
-            cached_info = processed_tracks_cache.pop(request_id) # Use and remove from cache
+            cached_info = processed_tracks_cache.pop(request_id)
             
-            # Handle cached failures (None)
             if cached_info is None:
                 log.warning("Cached result was a failure. Marking as failed.")
                 update_song_scrobble_status(request_id, 'failed')
-                continue # Move to the next song
+                continue
 
             track_name = cached_info.get('name')
             artist_name = cached_info.get('artist')
             album_name = cached_info.get('album')
         else:
-            # Fallback for songs that weren't 'Now Playing' (e.g., from a backlog)
             log.info(f"No cache hit. Query: {song['query']}, Resolved Title: {song['resolved_title']}")
             best_track = pipeline_inst.execute(
                 song['query'],
@@ -178,7 +168,6 @@ def process_new_songs(pipeline_inst: pipeline.TrackPipeline, processed_tracks_ca
             start_ts_utc = datetime.fromisoformat(song['play_start_timestamp']).replace(tzinfo=timezone.utc)
             calculated_ts = int(start_ts_utc.timestamp()) + song['duration']
 
-            # If the song was skipped, its finish time might be in the future. Cap it to now.
             current_ts = int(datetime.now(timezone.utc).timestamp())
             scrobble_ts = min(calculated_ts, current_ts)
             
@@ -200,11 +189,12 @@ def main():
         lastfm_client.authenticate()
         sys.exit(0)
     
-    if not config.LAST_FM_SESSION_KEY and not args.authenticate:
-        log.error("LAST_FM_SESSION_KEY not found in .env. Please run with --authenticate first.")
+    try:
+        config.validate_config(require_session_key=True)
+    except ValueError as e:
+        log.error(str(e))
         sys.exit(1)
 
-    # Create the pipeline using the default configuration
     pipeline_inst = pipeline.TrackPipeline.from_default_config(
         searchable_tracks=SEARCHABLE_TRACKS
     )
@@ -219,19 +209,15 @@ def main():
     wait_seconds = 5
     last_fm_now_playing_track: Dict[Any, Any] | None = None
     processed_tracks_cache = {}
-    
 
     try:
         while True:
-            # 1. Handle 'Now Playing' status and cache the result
             last_fm_now_playing_track = process_now_playing(
                 pipeline_inst, last_fm_now_playing_track or {}, processed_tracks_cache
             )
 
-            # 2. Handle scrobbling of completed tracks, using the cache
             process_new_songs(pipeline_inst, processed_tracks_cache)
             
-            # 3. Wait before the next cycle
             log.debug(f"Waiting for {wait_seconds} seconds before next check.")
             time.sleep(wait_seconds)
 

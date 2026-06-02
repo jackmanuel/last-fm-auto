@@ -1,3 +1,7 @@
+# scripts/build_artist_list.py
+"""
+Utility script to extract and compile a unique list of artists from CSV datasets.
+"""
 import os
 import csv
 import json
@@ -33,13 +37,13 @@ def merge_artists_to_json(data_directory, output_file_path):
     Merges the 'Artist' column from CSVs in a specified data directory
     into a single JSON file.
 
+
     Args:
         data_directory (str): The absolute path to the folder with the CSV files.
         output_file_path (str): The absolute path for the output JSON file.
     """
     all_artists = set()
 
-    # Verify that the directory from the config file actually exists.
     if not os.path.isdir(data_directory):
         print(f"Error: The directory specified in DATA_DIR does not exist.")
         print(f"Path not found: {data_directory}")
@@ -65,7 +69,6 @@ def merge_artists_to_json(data_directory, output_file_path):
     if not all_artists:
         print("Warning: No artists were found. The output file will be empty.")
 
-    # Convert the set to a sorted list for consistent output.
     unique_artists = sorted(
         artist for artist in all_artists
         if artist not in rejected_comma_artists
@@ -80,7 +83,6 @@ def merge_artists_to_json(data_directory, output_file_path):
         if artist in rejected_comma_artists
     )
 
-    # Write the list to the JSON file.
     try:
         with open(output_file_path, 'w', encoding='utf-8') as jsonfile:
             json.dump(unique_artists, jsonfile, indent=2, ensure_ascii=False)

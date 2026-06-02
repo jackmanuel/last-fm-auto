@@ -81,9 +81,13 @@ NOISY_CHANNEL_WORDS = {
 
 
 def expand_abbreviations(query: str) -> str:
-    """Expands known abbreviations in the query string."""
+    """
+    Expands known abbreviations in the query string only if they appear
+    at the beginning or end of the query.
+    """
     for abbr, full_name in ABBREVIATION_MAP.items():
-        query = re.sub(r'\b' + re.escape(abbr) + r'\b', full_name, query, flags=re.IGNORECASE)
+        pattern = r'^\s*' + re.escape(abbr) + r'\b|\b' + re.escape(abbr) + r'\s*$'
+        query = re.sub(pattern, full_name, query, flags=re.IGNORECASE)
     return query
 
 def clean_youtube_title(title: str) -> str:

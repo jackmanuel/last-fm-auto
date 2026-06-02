@@ -69,5 +69,32 @@ class SplitArtistTrackTests(unittest.TestCase):
         )
 
 
+class AbbreviationExpansionTests(unittest.TestCase):
+    def test_expands_abbreviation_at_beginning_of_query(self):
+        self.assertEqual(
+            preprocessing.expand_abbreviations("am I made of chalk"),
+            "Arctic Monkeys I made of chalk",
+        )
+
+    def test_expands_abbreviation_at_end_of_query(self):
+        self.assertEqual(
+            preprocessing.expand_abbreviations("chalk is what I am"),
+            "chalk is what I Arctic Monkeys",
+        )
+
+    def test_does_not_expand_abbreviation_in_middle_of_query(self):
+        self.assertEqual(
+            preprocessing.expand_abbreviations("I am made of chalk"),
+            "I am made of chalk",
+        )
+
+    def test_expands_entire_query_when_it_is_abbreviation(self):
+        self.assertEqual(
+            preprocessing.expand_abbreviations("am"),
+            "Arctic Monkeys",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
+

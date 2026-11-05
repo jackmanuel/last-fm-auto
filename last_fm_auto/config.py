@@ -31,7 +31,7 @@ LAST_FM_API_KEY = os.getenv('LAST_FM_API_KEY')
 LAST_FM_API_SECRET = os.getenv('LAST_FM_API_SECRET')
 LAST_FM_SESSION_KEY = os.getenv('LAST_FM_SESSION_KEY')
 
-LAST_FM_API_URL = "http://ws.audioscrobbler.com/2.0/"
+LAST_FM_API_URL = "https://ws.audioscrobbler.com/2.0/"
 LAST_FM_SEARCH_LIMIT = 10
 
 # --- Application Logic ---

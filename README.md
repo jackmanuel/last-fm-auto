@@ -25,33 +25,44 @@ This project provides a sophisticated pipeline for automatically scrobbling trac
 *   `scripts/`: Helper scripts for tasks like building the local track database and curating artist data.
 *   `data/`: Data files, such as the abbreviation list, artist list, local track database, and evaluation ground truth.
 
+See [Data Provenance and Licence](data/README.md#data-provenance-and-licence) for the source of the bundled artist list and how the MIT licence applies.
+
 
 ## Setup and Installation
 
-**Note:** It is highly recommended to use a Python virtual environment.
+Setup was verified with Python 3.13. A virtual environment is recommended.
 
 1.  **Clone the repository**:
     ```bash
     git clone https://github.com/jackmanuel/last-fm-auto.git
     cd last-fm-auto
     ```
-2.  **Install the project in editable mode**:
-    This command uses the `setup.py` file to install the project package and its dependencies. The `-e` flag makes the installation "editable," so any code changes are immediately available.
-    ```bash
-    pip install -e .
+2.  **Create a virtual environment and install dependencies**:
+    On Windows, use PowerShell:
+    ```powershell
+    python -m venv .venv
+    .\.venv\Scripts\python.exe -m pip install -r requirements.txt
     ```
+    On macOS or Linux:
+    ```bash
+    python3 -m venv .venv
+    source .venv/bin/activate
+    python -m pip install -r requirements.txt
+    ```
+    Run the commands below from the project root. On Windows, use `.\.venv\Scripts\python.exe` in place of `python`.
 3.  **Configure Environment and Database**:
     
     Copy `.env.example` to a new file named `.env` in the root directory:
     ```bash
     cp .env.example .env
     ```
+    In PowerShell, use `Copy-Item .env.example .env`.
     
     Edit the `.env` file with your credentials and path to your database.
     ```
     LAST_FM_API_KEY="your_api_key"
     LAST_FM_API_SECRET="your_api_secret"
-    LAST_FM_SESSION_KEY="your_session_key"
+    LAST_FM_SESSION_KEY=""
     DATABASE_PATH="C:/path/to/your/database.db"
     GUILD_ID="your_discord_guild_id"
     ```
@@ -59,7 +70,7 @@ This project provides a sophisticated pipeline for automatically scrobbling trac
     
     **Setting Up Last.fm Session Key**
 
-    To scrobble tracks to Last.fm, you need to authenticate your application. This is a one-time setup process that uses OAuth to securely connect with Last.fm.
+    To scrobble tracks to Last.fm, authorize the application once using Last.fm's desktop authentication flow.
 
     1.  **Get Last.fm API Credentials**:
         -   Go to the [Last.fm API page](https://www.last.fm/api/account/create) to create an API account.
@@ -112,14 +123,37 @@ This project provides a sophisticated pipeline for automatically scrobbling trac
 
     For YouTube URL rows, `channel_name` is used only when it can be matched confidently to an artist in `data/artists.json`. If the value is missing, empty, noisy, ambiguous, or below the configured thresholds, the pipeline ignores it and falls back to the normal resolved-title matching strategies.
 
+    To try the scrobbler without the bot, run this SQL in SQLite to create an empty `play_history` table:
+
+    ```sql
+    CREATE TABLE play_history (
+        request_id INTEGER PRIMARY KEY,
+        query TEXT,
+        resolved_title TEXT,
+        channel_name TEXT,
+        guild_id TEXT,
+        play_start_timestamp TEXT,
+        duration INTEGER,
+        play_status TEXT,
+        scrobble_status TEXT
+    );
+    ```
+
+    Set `DATABASE_PATH` to that database and `GUILD_ID` to a value of your choice. After authenticating, run `python -m last_fm_auto.main --run-once`. With an empty table, it should report that there are no new songs to process. To process tracks later, populate the table with rows whose `guild_id` matches your configuration.
+
 ## Usage
 
 ### Running the Scrobbler
 
-The primary way to run the application is by using the provided batch script. This will start the main process that monitors the database for pending tracks. It will check the database for new entries every 5 seconds by default.
+Run the scrobbler from the project root to monitor the database for pending tracks. It checks for new entries every 5 seconds by default.
 
 ```bash
-# From the project root directory
+python -m last_fm_auto.main
+```
+
+On Windows, you can also use the batch script to start it with the project's virtual environment.
+
+```powershell
 .\run_scrobbler.bat
 ```
 
@@ -144,7 +178,7 @@ Artist-first plain text queries such as `beatles i will` are not currently handl
 
 ### Helper Scripts
 
-These scripts are for development, testing, and data preparation. Because the project is installed as a package, you must run them with the `python -m` flag from the project's root directory.
+Run these development, testing, and data preparation scripts with `python -m` from the project root.
 
 *   **Build the Artist List**:
     Generate `data/artists.json` from the source CSV files. This is used by the query splitter to recognize artist names.

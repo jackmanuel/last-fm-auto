@@ -105,26 +105,22 @@ def authenticate():
         log.error("Please create a .env file in the project root with your credentials.")
         sys.exit(1)
 
-    # 1. Get an auth token
     log.info("Requesting authentication token from Last.fm...")
     token = get_auth_token(api_key, api_secret)
     if not token:
         log.error("Could not get an authentication token. Please check your API key and secret.")
         sys.exit(1)
 
-    # 2. Ask user to authorize
-    auth_url = f"http://www.last.fm/api/auth/?api_key={api_key}&token={token}"
+    auth_url = f"https://www.last.fm/api/auth/?api_key={api_key}&token={token}"
     print("\n--- User Authorization Required ---")
     print("Please open the following URL in your web browser to grant permission:")
     print(auth_url)
     input("\nPress Enter after you have authorized the application...")
 
-    # 3. Get a session key
     log.info("Fetching session key...")
     session_key = get_session_key(api_key, api_secret, token)
 
     if session_key:
-        # 4. Save the session key
         _save_session_key_to_env(session_key)
         log.info("Authentication successful! You can now run the scrobbler.")
     else:

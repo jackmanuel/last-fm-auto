@@ -35,6 +35,7 @@ LAST_FM_API_URL = "https://ws.audioscrobbler.com/2.0/"
 LAST_FM_SEARCH_LIMIT = 10
 
 # --- Application Logic ---
+SCROBBLE_MODE = os.getenv('SCROBBLE_MODE', 'guild').strip().lower()
 GUILD_ID = os.getenv('GUILD_ID')
 DEBUG_MODE = os.getenv('DEBUG_MODE', 'False').lower() == 'true'
 
@@ -43,6 +44,11 @@ def validate_config(require_session_key=False):
     Validates that all required configuration values are set in the environment.
     Raises ValueError with a descriptive message listing any missing configurations.
     """
+    if SCROBBLE_MODE not in ('guild', 'standalone'):
+        raise ValueError("SCROBBLE_MODE must be 'guild' or 'standalone'.")
+    if SCROBBLE_MODE == 'standalone' and GUILD_ID:
+        raise ValueError("Unset GUILD_ID when using SCROBBLE_MODE=standalone.")
+
     missing_vars = []
     if not DB_FILE:
         missing_vars.append("DATABASE_PATH")
@@ -50,7 +56,7 @@ def validate_config(require_session_key=False):
         missing_vars.append("LAST_FM_API_KEY")
     if not LAST_FM_API_SECRET:
         missing_vars.append("LAST_FM_API_SECRET")
-    if not GUILD_ID:
+    if SCROBBLE_MODE == 'guild' and not GUILD_ID:
         missing_vars.append("GUILD_ID")
     if require_session_key and not LAST_FM_SESSION_KEY:
         missing_vars.append("LAST_FM_SESSION_KEY")

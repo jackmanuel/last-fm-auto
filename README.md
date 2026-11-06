@@ -64,8 +64,11 @@ Setup was verified with Python 3.13. A virtual environment is recommended.
     LAST_FM_API_SECRET="your_api_secret"
     LAST_FM_SESSION_KEY=""
     DATABASE_PATH="C:/path/to/your/database.db"
+    SCROBBLE_MODE="guild"
     GUILD_ID="your_discord_guild_id"
     ```
+
+    Guild mode is the default when `SCROBBLE_MODE` is omitted. It requires `GUILD_ID` and only reads plays from that Discord server.
 
     
     **Setting Up Last.fm Session Key**
@@ -92,7 +95,7 @@ Setup was verified with Python 3.13. A virtual environment is recommended.
     
     The application requires `DATABASE_PATH` to point to a SQLite database with a specific structure. The script reads from a table of pending tracks to scrobble.
     
-    Your database must contain a table named `play_history` with the following columns:
+    Your database must contain a table named `play_history` with the columns below. Only guild mode requires `guild_id`.
     
     | Column Name | Data Type | Description |
     | :--- | :--- | :--- |
@@ -100,7 +103,7 @@ Setup was verified with Python 3.13. A virtual environment is recommended.
     | `query` | TEXT | The raw song title to be searched for (can be a YouTube Link). |
     | `resolved_title` | TEXT | The resolved title of the YouTube video returned. |
     | `channel_name` | TEXT | The YouTube channel/uploader name. This can be null or empty, but the column must exist for the main scrobbler. |
-    | `guild_id` | TEXT | The guild ID of the server that should be scrobbled. |
+    | `guild_id` | TEXT | In guild mode, the Discord server ID associated with the play. |
     | `play_start_timestamp` | TEXT | The UTC timestamp when the song started playing (e.g., 2024-11-01T17:02:49.765055). |
     | `duration` | INTEGER | The duration of the song in seconds. |
     | `play_status` | TEXT | The playback status. Supported values: `queued`, `playing`, `completed`, `skipped`. |
@@ -117,13 +120,13 @@ Setup was verified with Python 3.13. A virtual environment is recommended.
     | `user_name` | TEXT | The Discord username of the requesting user. |
     | `resolved_url` | TEXT | The resolved video or stream URL. |
 
-    **Integration Flexibility**
+    **Standalone SQLite Setup**
 
-    While this project was developed to work with the [python-music-bot](https://github.com/jackmanuel/python-music-bot), it is designed to be data-source agnostic. Any application can use this scrobbler as long as it can populate a SQLite database with a `play_history` table that matches the required columns described above.
+    To use playback history from another application, set `SCROBBLE_MODE="standalone"`, unset `GUILD_ID`, and point `DATABASE_PATH` to a dedicated SQLite database. Standalone mode processes all eligible plays in that database, so use guild mode for a shared Discord bot database. The source application supplies playback rows and the scrobbler writes their `scrobble_status` back to the table.
 
     For YouTube URL rows, `channel_name` is used only when it can be matched confidently to an artist in `data/artists.json`. If the value is missing, empty, noisy, ambiguous, or below the configured thresholds, the pipeline ignores it and falls back to the normal resolved-title matching strategies.
 
-    To try the scrobbler without the bot, run this SQL in SQLite to create an empty `play_history` table:
+    To create an empty standalone `play_history` table, run this SQL in SQLite:
 
     ```sql
     CREATE TABLE play_history (
@@ -131,7 +134,6 @@ Setup was verified with Python 3.13. A virtual environment is recommended.
         query TEXT,
         resolved_title TEXT,
         channel_name TEXT,
-        guild_id TEXT,
         play_start_timestamp TEXT,
         duration INTEGER,
         play_status TEXT,
@@ -139,7 +141,7 @@ Setup was verified with Python 3.13. A virtual environment is recommended.
     );
     ```
 
-    Set `DATABASE_PATH` to that database and `GUILD_ID` to a value of your choice. After authenticating, run `python -m last_fm_auto.main --run-once`. With an empty table, it should report that there are no new songs to process. To process tracks later, populate the table with rows whose `guild_id` matches your configuration.
+    After authenticating, run `python -m last_fm_auto.main --run-once`. With an empty table, it should report that there are no new songs to process. To queue a scrobble, add a row with `play_status='completed'` and `scrobble_status='new'`.
 
 ## Usage
 

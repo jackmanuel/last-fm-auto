@@ -21,15 +21,24 @@ SEARCHABLE_TRACKS: List[Dict[Any, Any]] = searchable_tracks_data if isinstance(s
 
 # --- Database Interaction ---
 
-def get_new_songs(guild_id: str) -> list:
-    """Fetches all 'new', 'completed' songs for a specific guild from the database."""
+def _guild_filter(guild_id: str | None) -> tuple[str, tuple[str | None, ...]]:
+    """Allow unfiltered reads only when standalone mode is explicitly selected."""
+    if config.SCROBBLE_MODE == 'standalone' and not guild_id:
+        return "", ()
+    return " AND guild_id = ?", (guild_id,)
+
+
+def get_new_songs(guild_id: str | None) -> list:
+    """Fetches completed songs pending scrobbling within the configured scope."""
+    guild_filter, params = _guild_filter(guild_id)
     try:
         conn = sqlite3.connect(config.DB_FILE, timeout=config.DB_TIMEOUT)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT * FROM play_history WHERE play_status = 'completed' AND scrobble_status = 'new' AND guild_id = ? ORDER BY play_start_timestamp DESC",
-            (guild_id,)
+            "SELECT * FROM play_history WHERE play_status = 'completed' AND scrobble_status = 'new'"
+            f"{guild_filter} ORDER BY play_start_timestamp DESC",
+            params,
         )
         songs = cursor.fetchall()
         conn.close()
@@ -54,15 +63,17 @@ def get_youtube_channel(song: sqlite3.Row) -> str | None:
     """Returns the YouTube channel name stored by python-music-bot."""
     return str(song['channel_name']) if song['channel_name'] else None
 
-def get_playing_song(guild_id: str) -> sqlite3.Row | None:
-    """Fetches the current 'playing' song for a specific guild from the database."""
+def get_playing_song(guild_id: str | None) -> sqlite3.Row | None:
+    """Fetches the most recent playing song within the configured scope."""
+    guild_filter, params = _guild_filter(guild_id)
     try:
         conn = sqlite3.connect(config.DB_FILE, timeout=config.DB_TIMEOUT)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT * FROM play_history WHERE play_status = 'playing' AND guild_id = ? ORDER BY play_start_timestamp DESC LIMIT 1",
-            (guild_id,)
+            "SELECT * FROM play_history WHERE play_status = 'playing'"
+            f"{guild_filter} ORDER BY play_start_timestamp DESC LIMIT 1",
+            params,
         )
         song = cursor.fetchone()
 
@@ -78,10 +89,6 @@ def process_now_playing(pipeline_inst: pipeline.TrackPipeline, last_fm_now_playi
     and caches the processed track details.
     Returns the updated now playing track.
     """
-    if not config.GUILD_ID:
-        log.warning("GUILD_ID not configured. Skipping 'Now Playing' check.")
-        return last_fm_now_playing_track
-        
     playing_song = get_playing_song(config.GUILD_ID)
     if not playing_song:
         return last_fm_now_playing_track
@@ -124,10 +131,6 @@ def process_new_songs(pipeline_inst: pipeline.TrackPipeline, processed_tracks_ca
     Fetches new songs, processes them, and scrobbles them.
     Uses a cache of processed tracks to avoid redundant pipeline calls.
     """
-    if not config.GUILD_ID:
-        log.warning("GUILD_ID not configured. Skipping new song processing.")
-        return 0
-        
     new_songs = get_new_songs(config.GUILD_ID)
     if not new_songs:
         return 0
@@ -205,6 +208,7 @@ def main():
         sys.exit(0)
 
     log.info("Scrobbler starting in continuous mode... Press Ctrl+C to stop.")
+    log.debug(f"Scrobble mode: {config.SCROBBLE_MODE}")
     log.debug(f"Guild ID: {config.GUILD_ID}")
     wait_seconds = 5
     last_fm_now_playing_track: Dict[Any, Any] | None = None

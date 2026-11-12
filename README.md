@@ -159,6 +159,23 @@ On Windows, you can also use the batch script to start it with the project's vir
 .\run_scrobbler.bat
 ```
 
+On Debian or other Linux systems, use the shell script. It uses the project's
+virtual environment and can be launched from any working directory:
+
+```bash
+./run_scrobbler.sh
+```
+
+To process pending completed plays once and exit (this submits real scrobbles):
+
+```bash
+./run_scrobbler.sh --run-once
+```
+
+Use an existing Linux database path in `.env`, for example
+`DATABASE_PATH="/home/your-user/bots/python-music-bot/database/music_log.db"`.
+Stop continuous mode with Ctrl+C. Logs are saved in `logs/last_fm_auto.log`.
+
 ### Query Format Tips
 
 For plain text queries, the current artist/track splitter works best when users put the track first and the artist at the end:
